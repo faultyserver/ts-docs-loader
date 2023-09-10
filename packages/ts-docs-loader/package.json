@@ -1,0 +1,35 @@
+{
+  "name": "@faulty/ts-docs-loader",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "author": "Jon Egeland",
+  "license": "ISC",
+  "keywords": [
+    "documentation",
+    "typescript",
+    "webpack",
+    "loader",
+    "webpack-loader",
+    "ts",
+    "docs",
+    "jsdoc",
+    "tsdoc",
+    "proptable",
+    "prop-table"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.22.16",
+    "@babel/traverse": "^7.22.17",
+    "@babel/types": "^7.22.17",
+    "doctrine": "^3.0.0",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.0"
+  }
+}
