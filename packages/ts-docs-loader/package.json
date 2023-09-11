@@ -1,8 +1,8 @@
 {
   "name": "@faulty/ts-docs-loader",
   "private": true,
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "Generate documentation for TypeScript interfaces, functions, types, and more on-the-fly through webpack",
   "author": "Jon Egeland",
   "license": "ISC",
   "keywords": [
@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.22.15",
+    "@faulty/ts-docs-node-types": "workspace:*",
     "@jest/globals": "^29.6.4",
     "@types/babel__traverse": "^7.20.1",
     "@types/node": "^20.6.0",

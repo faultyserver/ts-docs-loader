@@ -18,7 +18,7 @@ new NodePath();
 
 module.exports = class Transformer {
   /**
-   * @param {string} filePath - Absolute file path for the source
+   * @param {string} filePath - Absolute file path for the source, used for constructing IDs
    */
   constructor(filePath) {
     /** @type {string} */
@@ -34,7 +34,11 @@ module.exports = class Transformer {
      */
     this.dependencies = [];
 
-    /** @type {Map<string, NodePath>} */
+    /**
+     * Types that aren't exported still need to be tracked, so that references
+     * to those types are able to be resolved.
+     * @type {Map<string, NodePath>}
+     */
     this.globalTypes = new Map();
   }
 
@@ -70,28 +74,6 @@ module.exports = class Transformer {
    */
   addGlobalType(name, path) {
     this.globalTypes.set(name, path);
-  }
-
-  /**
-   * @param {NodePath} p
-   * @returns {import("./nodeTypes").ParameterNode}
-   */
-  processParameter(p) {
-    if (p.isAssignmentPattern()) {
-      p = p.get('left');
-    }
-
-    return {
-      type: 'parameter',
-      name: p.isRestElement() ? p.node.argument['name'] : p.node['name'],
-      value:
-        'typeAnnotation' in p.node && p.node.typeAnnotation != null
-          ? // @ts-ignore
-            this.processExport(p.get('typeAnnotation.typeAnnotation'))
-          : {type: 'any'},
-      optional: 'optional' in p.node ? p.node.optional != null : false,
-      rest: p.isRestElement(),
-    };
   }
 
   /**
@@ -525,8 +507,8 @@ module.exports = class Transformer {
               path.get('typeParameters.params').map((p) => this.processExport(p))
             : [],
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -554,8 +536,8 @@ module.exports = class Transformer {
           optional: path.node.optional || false,
           access: path.node.accessibility,
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -609,8 +591,8 @@ module.exports = class Transformer {
           value: this.processExport(path.get('value')),
           optional: false,
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -667,8 +649,8 @@ module.exports = class Transformer {
           value,
           access: path.node['accessibility'],
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -726,8 +708,8 @@ module.exports = class Transformer {
                 path.get('typeParameters.params').map((p) => this.processExport(p))
               : [],
           },
-          docs
-        )
+          docs,
+        ),
       );
     }
   }
@@ -903,8 +885,8 @@ module.exports = class Transformer {
               path.get('typeParameters.params').map((p) => this.processExport(p))
             : [],
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -1080,8 +1062,8 @@ module.exports = class Transformer {
           value,
           optional: path.node.optional || false,
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -1120,8 +1102,8 @@ module.exports = class Transformer {
               : [],
           },
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -1148,8 +1130,8 @@ module.exports = class Transformer {
           // @ts-ignore
           value: this.processExport(path.get('typeAnnotation.typeAnnotation')),
         },
-        docs
-      )
+        docs,
+      ),
     );
   }
 
@@ -1283,6 +1265,28 @@ module.exports = class Transformer {
       type: typeof value,
       value,
     });
+  }
+
+  /**
+   * @param {NodePath} path
+   * @returns {import("./nodeTypes").ParameterNode}
+   */
+  processParameter(path) {
+    if (path.isAssignmentPattern()) {
+      path = path.get('left');
+    }
+
+    return {
+      type: 'parameter',
+      name: path.isRestElement() ? path.node.argument['name'] : path.node['name'],
+      value:
+        'typeAnnotation' in path.node && path.node.typeAnnotation != null
+          ? // @ts-ignore
+            this.processExport(path.get('typeAnnotation.typeAnnotation'))
+          : {type: 'any'},
+      optional: 'optional' in path.node ? path.node.optional != null : false,
+      rest: path.isRestElement(),
+    };
   }
 
   /**

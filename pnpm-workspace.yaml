@@ -1,2 +1,4 @@
 packages:
   - packages/ts-docs-loader
+  - packages/ts-docs-type-renderer
+  - packages/ts-docs-node-types

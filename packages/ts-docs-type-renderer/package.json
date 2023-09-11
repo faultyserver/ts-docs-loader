@@ -1,0 +1,20 @@
+{
+  "name": "@faulty/ts-docs-type-renderer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Render type signatures from documentation created by `@faulty/ts-docs-loader`.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@faulty/ts-docs-node-types": "workspace:*",
+    "@jest/globals": "^29.6.4",
+    "jest": "^29.6.4",
+    "typescript": "^5.2.2"
+  }
+}

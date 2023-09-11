@@ -56,6 +56,11 @@ function parseSingleExpression(source, expressionType) {
 }
 
 /**
+ * Force `path.get` to resolve to a non-nullable entity, so that it can be
+ * passed to `transformer.processExport` without a type error.
+ *
+ * This function doesn't actually do anything, it just asserts the type.
+ *
  * @template {Node | null | undefined} T
  * @param {NodePath<T>} t
  * @returns {NodePath<Exclude<T, null | undefined>>}
@@ -65,7 +70,7 @@ function ensuredPath(t) {
   return t;
 }
 
-describe('processPath', () => {
+describe('Transformer', () => {
   test('empty interface', () => {
     const transformer = getTransformer();
     const path = parseSingleExpression('export interface Foo {}', 'ExportNamedDeclaration');
