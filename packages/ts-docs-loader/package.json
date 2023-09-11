@@ -1,6 +1,5 @@
 {
   "name": "@faulty/ts-docs-loader",
-  "private": true,
   "version": "0.1.0",
   "description": "Generate documentation for TypeScript interfaces, functions, types, and more on-the-fly through webpack",
   "author": "Jon Egeland",
