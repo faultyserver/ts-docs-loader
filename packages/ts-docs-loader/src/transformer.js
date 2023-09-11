@@ -345,8 +345,10 @@ module.exports = class Transformer {
    * @returns
    */
   processPath(path, node) {
-    // (Type), often used for array literal notation.
+    // (Type), often used for array literal notation, but we don't can ignore
+    // that when resolving the type.
     if (path.isTSParenthesizedType()) return this.processExport(path.get('typeAnnotation'), node);
+
     // foo as string
     //
     // not sure why I can't pass typeAnnotation instead
@@ -443,14 +445,11 @@ module.exports = class Transformer {
 
     // @ts-ignore
     this.processExport(path.get('init'), node);
+    node.id = `${this.filePath}:${path.node.id['name']}`;
+    node.name = path.node.id['name'];
 
     // @ts-ignore
     this.addDocs(node, docs);
-    if (node.type === 'interface') {
-      node.id = `${this.filePath}:${path.node.id['name']}`;
-
-      node.name = path.node.id['name'];
-    }
 
     return node;
   }

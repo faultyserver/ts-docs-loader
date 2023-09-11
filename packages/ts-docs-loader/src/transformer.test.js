@@ -70,19 +70,43 @@ function ensuredPath(t) {
   return t;
 }
 
+/**
+ * Return a full ID for the given name. This just prepends the default
+ * transformer's filePath to the name, matching its internal behavior.
+ * @param {string} name
+ */
+function makeId(name) {
+  return `mem:${name}`;
+}
+
+/**
+ * @param {Node} node
+ * @param {object} expected
+ */
+function assertNodeContent(node, expected) {
+  for (const key in expected) {
+    if (expected[key] instanceof Object) {
+      assert.deepEqual(node[key], expected[key], `key '${key}' did not match`);
+    } else {
+      assert.equal(node[key], expected[key]);
+    }
+  }
+}
+
 describe('Transformer', () => {
   test('empty interface', () => {
     const transformer = getTransformer();
     const path = parseSingleExpression('export interface Foo {}', 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.type === 'interface');
-    assert(output.name === 'Foo');
-    assert.match(output.id, /.+:.+/);
-    assert(output.extends instanceof Array);
-    assert(output.properties instanceof Object);
-    assert(output.typeParameters instanceof Array);
-    assert(Object.values(output.properties).length === 0);
+    assertNodeContent(output, {
+      type: 'interface',
+      name: 'Foo',
+      id: makeId('Foo'),
+      extends: [],
+      typeParameters: [],
+      properties: {},
+    });
   });
 
   test('extending interface', () => {
@@ -90,10 +114,7 @@ describe('Transformer', () => {
     const path = parseSingleExpression('export interface Foo extends Bar {}', 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.extends instanceof Array);
-    assert(output.extends.length === 1);
-    assert(output.extends[0].type === 'identifier');
-    assert(output.extends[0].name === 'Bar');
+    assertNodeContent(output, {extends: [{type: 'identifier', name: 'Bar'}]});
   });
 
   test('plain enum', () => {
@@ -101,12 +122,13 @@ describe('Transformer', () => {
     const path = parseSingleExpression('export enum Bar { A, B}', 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.type === 'enum');
-    assert(output.name === 'Bar');
-    assert(output.members[0].name === 'A');
-    assert(output.members[0].value === null);
-    assert(output.members[1].name === 'B');
-    assert(output.members[1].value === null);
+    assertNodeContent(output, {
+      type: 'enum',
+      name: 'Bar',
+    });
+    assert(output.members.length === 2);
+    assertNodeContent(output.members[0], {name: 'A', value: null});
+    assertNodeContent(output.members[1], {name: 'B', value: null});
   });
 
   test('enum with numeric values', () => {
@@ -114,16 +136,12 @@ describe('Transformer', () => {
     const path = parseSingleExpression('export enum Bar { A = 1, B, C = 2}', 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.type === 'enum');
-    assert(output.name === 'Bar');
+    assertNodeContent(output, {type: 'enum', name: 'Bar'});
     assert(output.members.length === 3);
-    assert(output.members[0].name === 'A');
-    // Numeric literals are saved as string values
-    assert(output.members[0].value === '1');
-    assert(output.members[1].name === 'B');
-    assert(output.members[1].value === null);
-    assert(output.members[2].name === 'C');
-    assert(output.members[2].value === '2');
+
+    assertNodeContent(output.members[0], {name: 'A', value: '1'});
+    assertNodeContent(output.members[1], {name: 'B', value: null});
+    assertNodeContent(output.members[2], {name: 'C', value: '2'});
   });
 
   test('enum with string values', () => {
@@ -131,14 +149,10 @@ describe('Transformer', () => {
     const path = parseSingleExpression("export enum Bar { A = 'foo', B = 'bar'}", 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.type === 'enum');
-    assert(output.name === 'Bar');
+    assertNodeContent(output, {type: 'enum', name: 'Bar'});
     assert(output.members.length === 2);
-    assert(output.members[0].name === 'A');
-    // Numeric literals are saved as string values
-    assert(output.members[0].value === 'foo');
-    assert(output.members[1].name === 'B');
-    assert(output.members[1].value === 'bar');
+    assertNodeContent(output.members[0], {name: 'A', value: 'foo'});
+    assertNodeContent(output.members[1], {name: 'B', value: 'bar'});
   });
 
   test('enum with mixed values', () => {
@@ -146,13 +160,35 @@ describe('Transformer', () => {
     const path = parseSingleExpression("export enum Bar { A = 1, B = 'two'}", 'ExportNamedDeclaration');
     const output = transformer.processExport(ensuredPath(path.get('declaration')));
 
-    assert(output.type === 'enum');
-    assert(output.name === 'Bar');
+    assertNodeContent(output, {type: 'enum', name: 'Bar'});
     assert(output.members.length === 2);
-    assert(output.members[0].name === 'A');
-    // Numeric literals are saved as string values
-    assert(output.members[0].value === '1');
-    assert(output.members[1].name === 'B');
-    assert(output.members[1].value === 'two');
+    assertNodeContent(output.members[0], {name: 'A', value: '1'});
+    assertNodeContent(output.members[1], {name: 'B', value: 'two'});
+  });
+
+  describe('processVariableDeclarator', () => {
+    test('handles initialized variable', () => {
+      const transformer = getTransformer();
+      const path = parseSingleExpression('const foo = 2', 'VariableDeclarator');
+
+      assertNodeContent(transformer.processExport(path), {type: 'number', name: 'foo', value: '2'});
+    });
+
+    test('returns empty for non-initialized variables', () => {
+      const transformer = getTransformer();
+      const path = parseSingleExpression('let foo;', 'VariableDeclarator');
+
+      assert.deepEqual(transformer.processExport(path), {});
+    });
+
+    test('treats object expressions as interfaces', () => {
+      const transformer = getTransformer();
+      const path = parseSingleExpression(`const foo = {a: 'hi'};`, 'VariableDeclarator');
+      const output = transformer.processExport(path);
+
+      assertNodeContent(output, {type: 'interface', name: 'foo'});
+      assertNodeContent(output.properties['a'], {type: 'property', name: 'a'});
+      assertNodeContent(output.properties['a'].value, {type: 'string', value: 'hi'});
+    });
   });
 });
