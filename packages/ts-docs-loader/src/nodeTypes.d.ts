@@ -222,6 +222,24 @@ interface LinkNode extends NodeBase {
   id: string;
 }
 
+/**
+ * Nodes that can represent keywords in the source. Some nodes may also
+ * represent literals instead.
+ */
+export type KeywordNode =
+  | AnyNode
+  | BooleanNode
+  | NeverNode
+  | NullNode
+  | NumberNode
+  | ObjectNode
+  | StringNode
+  | SymbolNode
+  | ThisNode
+  | UndefinedNode
+  | UnknownNode
+  | VoidNode;
+
 export type Node =
   | AliasNode
   | AnyNode

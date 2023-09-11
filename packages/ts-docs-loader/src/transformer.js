@@ -11,9 +11,9 @@ new NodePath();
 /**
  * @typedef {import('webpack').LoaderContext<any>} LoaderContext
  *
- * @typedef {import('./nodeTypes').Node} Node
+ * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  * @typedef {Partial<Node>} PartialNode
- * @typedef {import('./nodeTypes').NodeDocs} NodeDocs
+ * @typedef {import('@faulty/ts-docs-node-types').NodeDocs} NodeDocs
  */
 
 module.exports = class Transformer {
@@ -272,7 +272,7 @@ module.exports = class Transformer {
 
   /**
    *
-   * @param {import("./nodeTypes").FunctionNode} value
+   * @param {import("@faulty/ts-docs-node-types").FunctionNode} value
    * @param {NodeDocs} docs
    */
   addFunctionDocs(value, docs) {
@@ -1269,7 +1269,7 @@ module.exports = class Transformer {
 
   /**
    * @param {NodePath} path
-   * @returns {import("./nodeTypes").ParameterNode}
+   * @returns {import("@faulty/ts-docs-node-types").ParameterNode}
    */
   processParameter(path) {
     if (path.isAssignmentPattern()) {

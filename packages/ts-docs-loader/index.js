@@ -22,8 +22,8 @@ const getTSResolver = require('./src/resolver');
 const IN_PROGRESS_SET = new Set();
 
 /**
- * @typedef {import('./src/nodeTypes').Node} Node
- * @typedef {import('./src/nodeTypes').Asset} Asset
+ * @typedef {import('@faulty/ts-docs-node-types').Node} Node
+ * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
  */
 
 /**

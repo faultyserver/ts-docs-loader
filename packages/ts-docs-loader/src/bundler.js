@@ -2,9 +2,9 @@
 // @ts-check
 
 /**
- * @typedef {import('./nodeTypes.d.ts').Node} Node
- * @typedef {import('./nodeTypes.d.ts').PropertyNode | import('./nodeTypes.d.ts').MethodNode} PropertyOrMethodNode
- * @typedef {import('./nodeTypes.d.ts').Asset} Asset
+ * @typedef {import('@faulty/ts-docs-node-types').Node} Node
+ * @typedef {import('@faulty/ts-docs-node-types').PropertyNode | import('@faulty/ts-docs-node-types').MethodNode} PropertyOrMethodNode
+ * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
  */
 
 /**

@@ -36,6 +36,7 @@ interface SymbolNode extends NodeBase {
 }
 interface BooleanNode extends NodeBase {
   type: 'boolean';
+  value?: string;
 }
 interface StringNode extends NodeBase {
   type: 'string';
@@ -43,6 +44,7 @@ interface StringNode extends NodeBase {
 }
 interface NumberNode extends NodeBase {
   type: 'number';
+  value?: string;
 }
 interface NullNode extends NodeBase {
   type: 'null';
@@ -67,7 +69,7 @@ interface ArrayNode extends NodeBase {
 
 interface ObjectNode extends NodeBase {
   type: 'object';
-  properties: Record<string, Node>;
+  properties: Record<string, PropertyNode | MethodNode>;
 }
 
 interface UnionNode extends NodeBase {
@@ -222,6 +224,24 @@ interface LinkNode extends NodeBase {
   id: string;
 }
 
+/**
+ * Nodes that can represent keywords in the source. Some nodes may also
+ * represent literals instead.
+ */
+export type KeywordNode =
+  | AnyNode
+  | BooleanNode
+  | NeverNode
+  | NullNode
+  | NumberNode
+  | ObjectNode
+  | StringNode
+  | SymbolNode
+  | ThisNode
+  | UndefinedNode
+  | UnknownNode
+  | VoidNode;
+
 export type Node =
   | AliasNode
   | AnyNode
@@ -240,7 +260,6 @@ export type Node =
   | NeverNode
   | NullNode
   | NumberNode
-  | ObjectNode
   | ObjectNode
   | ParameterNode
   | PropertyNode
