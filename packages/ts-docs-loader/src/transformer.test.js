@@ -1,12 +1,12 @@
 // @ts-check
-import {describe, test} from '@jest/globals';
 import assert, {fail} from 'node:assert/strict';
-
+import {NodePath} from '@babel/traverse';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
+import {describe, test} from '@jest/globals';
 
 import Transformer from './transformer.js';
-import {NodePath} from '@babel/traverse';
+import {assertNodeContent} from '../test/util.js';
 
 /**
  * @typedef {import('@babel/types').Node} Node
@@ -77,20 +77,6 @@ function ensuredPath(t) {
  */
 function makeId(name) {
   return `mem:${name}`;
-}
-
-/**
- * @param {Node} node
- * @param {object} expected
- */
-function assertNodeContent(node, expected) {
-  for (const key in expected) {
-    if (expected[key] instanceof Object) {
-      assert.deepEqual(node[key], expected[key], `key '${key}' did not match`);
-    } else {
-      assert.equal(node[key], expected[key]);
-    }
-  }
 }
 
 describe('Transformer', () => {

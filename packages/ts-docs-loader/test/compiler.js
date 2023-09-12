@@ -36,9 +36,9 @@ export default function compiler(inputFS, options = {}) {
     },
   });
 
-  compiler.inputFileSystem = inputFS;
-  compiler.outputFileSystem = createFsFromVolume(new Volume());
-  compiler.outputFileSystem.join = path.join.bind(path);
+  // compiler.inputFileSystem = inputFS;
+  // compiler.outputFileSystem = createFsFromVolume(new Volume());
+  // compiler.outputFileSystem.join = path.join.bind(path);
 
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {
@@ -51,16 +51,13 @@ export default function compiler(inputFS, options = {}) {
 }
 
 /**
- * Create a filesystem to provide to the compiler for a test. Each file in
- * `files` will be created.
+ * Create a filesystem to provide to mock out node's FS during tests.
  *
- * By default, an `index` file will be used by the compiler as the entrypoint.
- * When using multiple files, this can be changed by passing an `entrypoint`
- * name as an option.
- *
- * @param {Record<string, string>} files Map of file names to their content
+ * The returned volume can be used to create and inspect files in memory within
+ * a test without having to use the native file system.
  */
-export function createFiles(files) {
+export function createFS() {
+  const fake = memfs();
   // @ts-ignore types don't exactly match, but are close enough
-  return new Union().use(memfs(files).fs).use(fs);
+  return {fs: new Union().use(fake.fs).use(fs), volume: fake.vol};
 }

@@ -57,9 +57,9 @@ module.exports = async function docsLoader(source) {
       const tsModule = tsResolver(path);
       const resolvedPath = tsModule?.resolvedModule?.resolvedFileName;
       if (resolvedPath == null) {
-        return Promise.reject();
+        throw `Could not resolve ${path}`;
       }
-      return Promise.resolve(resolvedPath);
+      return resolvedPath;
     },
     async importModule(filePath) {
       return webpackImport(`!!${thisLoaderPath}!${filePath}`, {}).catch((e) => {
@@ -72,7 +72,6 @@ module.exports = async function docsLoader(source) {
   const result = await loader.load(this.resourcePath);
 
   const code = `export default ${JSON.stringify(result)};`;
-  console.log('Code is', code);
   callback(null, code);
   IN_PROGRESS_SET.delete(this.resourcePath);
 };

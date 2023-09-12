@@ -66,7 +66,7 @@ module.exports = class Loader {
         continue;
       }
 
-      const data = this.bundler.importModule(resolvedPath);
+      const data = await this.bundler.importModule(resolvedPath);
       resolvedDependencies[dependency.path] = {
         id: path,
         exports: data.exports,
