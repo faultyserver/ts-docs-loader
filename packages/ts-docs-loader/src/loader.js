@@ -30,6 +30,12 @@ module.exports = class Loader {
   }
 
   /**
+   * This is the main loop of the loader. It takes in the raw source code of a
+   * module, parses it, transforms the content into a documentation node tree,
+   * then recurses through all of the found dependencies to get their content,
+   * and finally packages all of the data from the module and its dependencies
+   * into a single result.
+   *
    * @type {(filePath: string) => Promise<LoadResult>}
    */
   async load(filePath) {
@@ -69,8 +75,8 @@ module.exports = class Loader {
       const data = await this.bundler.importModule(resolvedPath);
       resolvedDependencies[dependency.path] = {
         id: resolvedPath,
-        exports: data.default.exports,
-        links: data.default.links,
+        exports: data.exports,
+        links: data.links,
         symbols: dependency.symbols,
       };
     }

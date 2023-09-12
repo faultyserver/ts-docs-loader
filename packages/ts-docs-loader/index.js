@@ -61,9 +61,11 @@ module.exports = async function docsLoader(source) {
       return resolvedPath;
     },
     async importModule(filePath) {
-      return webpackImport(`!!${thisLoaderPath}!${filePath}`, {}).catch((e) => {
+      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}`, {}).catch((e) => {
         callback(e);
       });
+
+      return result.default;
     },
   };
 

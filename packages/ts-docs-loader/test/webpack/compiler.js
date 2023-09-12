@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createFsFromVolume, Volume} from 'memfs';
 import webpack from 'webpack';
 
-const LOADER_PATH = path.resolve(__dirname, '../index.js');
+const LOADER_PATH = path.resolve(__dirname, '../../index.js');
 const FIXTURES_DIR = path.resolve(__dirname, 'generated-fixtures');
 
 /**
