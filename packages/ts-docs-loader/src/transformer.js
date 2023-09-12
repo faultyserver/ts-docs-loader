@@ -14,6 +14,7 @@ new NodePath();
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  * @typedef {Partial<Node>} PartialNode
  * @typedef {import('@faulty/ts-docs-node-types').NodeDocs} NodeDocs
+ * @typedef {{path: string, symbols: Map<string, string>}} Dependency
  */
 
 module.exports = class Transformer {
@@ -30,7 +31,7 @@ module.exports = class Transformer {
     /**
      * Flattened list of this file's dependencies on other files. All links
      * within this file should have a matching dependency included here.
-     * @type {({path: string, symbols: Map<string, string>})[]}
+     * @type {Dependency[]}
      */
     this.dependencies = [];
 

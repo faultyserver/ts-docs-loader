@@ -21,7 +21,7 @@
  * @param {Record<string, Asset>} dependencies
  * @returns {{exports: DocsResult, links: Record<string, object>}}
  */
-module.exports = function bundle(thisAsset, dependencies) {
+module.exports = function packager(thisAsset, dependencies) {
   /** @type {NodeMap} */
   const nodes = {};
 
@@ -29,7 +29,7 @@ module.exports = function bundle(thisAsset, dependencies) {
 
   /**
    * Print messages only under certain conditions (like for specific assets) to
-   * reduce noise when bundling large numbers of files.
+   * reduce noise when packaging large numbers of files.
    *
    * @param {any[]} args
    * @param {RegExp} filePattern
