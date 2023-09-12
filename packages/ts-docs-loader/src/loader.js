@@ -58,7 +58,7 @@ module.exports = class Loader {
       // Really naive circular dependencies atm.
       if (this.bundler.isCurrentlyProcessing(resolvedPath)) {
         resolvedDependencies[dependency.path] = {
-          id: path,
+          id: resolvedPath,
           exports: {},
           links: {},
           symbols: new Map(),
@@ -68,9 +68,9 @@ module.exports = class Loader {
 
       const data = await this.bundler.importModule(resolvedPath);
       resolvedDependencies[dependency.path] = {
-        id: path,
-        exports: data.exports,
-        links: data.links,
+        id: resolvedPath,
+        exports: data.default.exports,
+        links: data.default.links,
         symbols: dependency.symbols,
       };
     }

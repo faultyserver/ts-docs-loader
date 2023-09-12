@@ -37,7 +37,7 @@ module.exports = async function docsLoader(source) {
     extensions: ['.ts', '.tsx', '.d.ts', '.js'],
     mainFields: ['source', 'types', 'main'],
   });
-  const tsResolver = getTSResolver(context);
+  const tsResolver = getTSResolver(this.resourcePath);
 
   /** @type {import('./src/loader').Bundler} */
   const adapter = {
@@ -54,10 +54,9 @@ module.exports = async function docsLoader(source) {
       return IN_PROGRESS_SET.has(filePath);
     },
     async resolve(path) {
-      const tsModule = tsResolver(path);
-      const resolvedPath = tsModule?.resolvedModule?.resolvedFileName;
+      const resolvedPath = tsResolver(path);
       if (resolvedPath == null) {
-        throw `Could not resolve ${path}`;
+        throw new Error(`Could not resolve ${path}`);
       }
       return resolvedPath;
     },
@@ -69,7 +68,10 @@ module.exports = async function docsLoader(source) {
   };
 
   const loader = new Loader(adapter);
-  const result = await loader.load(this.resourcePath);
+  const result = await loader.load(this.resourcePath).catch((e) => {
+    callback(e);
+    throw e;
+  });
 
   const code = `export default ${JSON.stringify(result)};`;
   callback(null, code);

@@ -1,18 +1,17 @@
 // @ts-check
 
-import * as fs from 'fs';
-import {Union} from 'unionfs';
-import {memfs} from 'memfs';
+import * as fs from 'node:fs';
+import path from 'node:path';
 import {createFsFromVolume, Volume} from 'memfs';
-import path from 'path';
 import webpack from 'webpack';
+
+const LOADER_PATH = path.resolve(__dirname, '../index.js');
+const FIXTURES_DIR = path.resolve(__dirname, 'generated-fixtures');
 
 /**
  * @return {Promise<webpack.Stats | undefined>}
  */
-export default function compiler(inputFS, options = {}) {
-  const entrypoint = options.entrypoint ?? '/index';
-
+export default function compiler(entrypoint, options = {}) {
   const compiler = webpack({
     context: __dirname,
     entry: entrypoint,
@@ -28,7 +27,7 @@ export default function compiler(inputFS, options = {}) {
         {
           test: /.*$/,
           use: {
-            loader: path.resolve(__dirname, '../index.js'),
+            loader: LOADER_PATH,
             options,
           },
         },
@@ -36,9 +35,8 @@ export default function compiler(inputFS, options = {}) {
     },
   });
 
-  // compiler.inputFileSystem = inputFS;
-  // compiler.outputFileSystem = createFsFromVolume(new Volume());
-  // compiler.outputFileSystem.join = path.join.bind(path);
+  compiler.outputFileSystem = createFsFromVolume(new Volume());
+  compiler.outputFileSystem.join = path.join.bind(path);
 
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {
@@ -51,13 +49,23 @@ export default function compiler(inputFS, options = {}) {
 }
 
 /**
- * Create a filesystem to provide to mock out node's FS during tests.
+ * Create a tree of files based on the input configuration, returning a
+ * matching record of local names to the full paths that were created.
  *
- * The returned volume can be used to create and inspect files in memory within
- * a test without having to use the native file system.
+ * @param {Record<string, string>} files
+ * @returns {Record<string, string>}
  */
-export function createFS() {
-  const fake = memfs();
-  // @ts-ignore types don't exactly match, but are close enough
-  return {fs: new Union().use(fake.fs).use(fs), volume: fake.vol};
+export function createFixtures(files) {
+  fs.mkdirSync(FIXTURES_DIR, {recursive: true});
+
+  /** @type {Record<string, string>} */
+  const created = {};
+
+  for (const [name, content] of Object.entries(files)) {
+    const fullPath = path.join(FIXTURES_DIR, name);
+    fs.writeFileSync(fullPath, content);
+    created[name] = fullPath;
+  }
+
+  return created;
 }

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 // @ts-check
 
 const t = require('@babel/types');

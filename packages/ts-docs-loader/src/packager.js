@@ -1,4 +1,4 @@
-/* eslint-disable no-console, no-use-before-define */
+/* eslint-disable no-use-before-define */
 // @ts-check
 
 /**
