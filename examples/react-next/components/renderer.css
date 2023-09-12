@@ -1,0 +1,26 @@
+/* Styles for the actual types */
+.type {
+  font-family: monospace;
+}
+
+.link {
+  color: #37d;
+}
+
+.keyword {
+  color: #c4a;
+}
+
+.symbol {
+  color: #c4a;
+}
+
+.stringLiteral {
+  color: #4b7;
+}
+
+.booleanLiteral,
+.numberLiteral {
+  color: #000;
+  font-weight: 600;
+}

@@ -1,4 +1,9 @@
-interface Asset {
+export interface GeneratedDocs {
+  exports: Record<string, Node>;
+  links: Record<string, Node>;
+}
+
+export interface Asset {
   // Unique name for the asset, realistically just the absolute path to it.
   id: string;
   exports: Record<string, Node>;
@@ -9,7 +14,7 @@ interface Asset {
   symbols: Map<string, string>;
 }
 
-interface NodeDocs {
+export interface NodeDocs {
   description?: string | null;
   selector?: string | null;
   access?: string | null;
@@ -19,87 +24,87 @@ interface NodeDocs {
   params?: Record<string, string>;
 }
 
-interface NodeBase extends NodeDocs {
+export interface NodeBase extends NodeDocs {
   id?: string;
   name?: string;
 }
 
-interface AnyNode extends NodeBase {
+export interface AnyNode extends NodeBase {
   type: 'any';
 }
 
-interface ThisNode extends NodeBase {
+export interface ThisNode extends NodeBase {
   type: 'this';
 }
-interface SymbolNode extends NodeBase {
+export interface SymbolNode extends NodeBase {
   type: 'symbol';
 }
-interface BooleanNode extends NodeBase {
+export interface BooleanNode extends NodeBase {
   type: 'boolean';
   value?: string;
 }
-interface StringNode extends NodeBase {
+export interface StringNode extends NodeBase {
   type: 'string';
   value?: string;
 }
-interface NumberNode extends NodeBase {
+export interface NumberNode extends NodeBase {
   type: 'number';
   value?: string;
 }
-interface NullNode extends NodeBase {
+export interface NullNode extends NodeBase {
   type: 'null';
 }
-interface UndefinedNode extends NodeBase {
+export interface UndefinedNode extends NodeBase {
   type: 'undefined';
 }
-interface VoidNode extends NodeBase {
+export interface VoidNode extends NodeBase {
   type: 'void';
 }
-interface UnknownNode extends NodeBase {
+export interface UnknownNode extends NodeBase {
   type: 'unknown';
 }
-interface NeverNode extends NodeBase {
+export interface NeverNode extends NodeBase {
   type: 'never';
 }
 
-interface ArrayNode extends NodeBase {
+export interface ArrayNode extends NodeBase {
   type: 'array';
   elementType: Node;
 }
 
-interface ObjectNode extends NodeBase {
+export interface ObjectNode extends NodeBase {
   type: 'object';
   properties: Record<string, PropertyNode | MethodNode>;
 }
 
-interface UnionNode extends NodeBase {
+export interface UnionNode extends NodeBase {
   type: 'union';
   elements: Node[];
 }
 
-interface IntersectionNode extends NodeBase {
+export interface IntersectionNode extends NodeBase {
   type: 'intersection';
   types: Node[];
 }
 
-interface TupleNode extends NodeBase {
+export interface TupleNode extends NodeBase {
   type: 'tuple';
   elements: Node[];
 }
 
-interface TemplateNode extends NodeBase {
+export interface TemplateNode extends NodeBase {
   type: 'template';
   elements: Node[];
 }
 
-interface TypeParameterNode extends NodeBase {
+export interface TypeParameterNode extends NodeBase {
   type: 'typeParameter';
   name: string;
   constraint: Node | null;
   default: Node | null;
 }
 
-interface ParameterNode extends NodeBase {
+export interface ParameterNode extends NodeBase {
   type: 'parameter';
   name: string;
   value: Node;
@@ -107,19 +112,19 @@ interface ParameterNode extends NodeBase {
   rest: boolean;
 }
 
-interface EnumNode extends NodeBase {
+export interface EnumNode extends NodeBase {
   type: 'enum';
   name: string;
   members: EnumMemberNode[];
 }
 
-interface EnumMemberNode extends NodeBase {
+export interface EnumMemberNode extends NodeBase {
   type: 'enumMmeber';
   name: string;
   value?: Node;
 }
 
-interface InterfaceNode extends NodeBase {
+export interface InterfaceNode extends NodeBase {
   type: 'interface';
   id: string;
   name: string;
@@ -128,12 +133,12 @@ interface InterfaceNode extends NodeBase {
   typeParameters: TypeParameterNode[];
 }
 
-interface InheritableNode {
+export interface InheritableNode {
   /** id of the interface that this property was inherited from */
   inheritedFrom?: string;
 }
 
-interface PropertyNode extends NodeBase, InheritableNode {
+export interface PropertyNode extends NodeBase, InheritableNode {
   type: 'property';
   name: string;
   value: Node;
@@ -141,14 +146,14 @@ interface PropertyNode extends NodeBase, InheritableNode {
   indexType?: Node;
 }
 
-interface MethodNode extends NodeBase, InheritableNode {
+export interface MethodNode extends NodeBase, InheritableNode {
   type: 'method';
   name: string;
   value: FunctionNode;
   optional?: boolean;
 }
 
-interface FunctionNode extends NodeBase {
+export interface FunctionNode extends NodeBase {
   type: 'function';
   id?: string;
   name?: string;
@@ -157,7 +162,7 @@ interface FunctionNode extends NodeBase {
   typeParameters: TypeParameterNode[];
 }
 
-interface ComponentNode extends NodeBase {
+export interface ComponentNode extends NodeBase {
   type: 'component';
   id: string;
   name: string;
@@ -166,18 +171,18 @@ interface ComponentNode extends NodeBase {
   ref: Node | null;
 }
 
-interface ApplicationNode extends NodeBase {
+export interface ApplicationNode extends NodeBase {
   type: 'application';
   base: Node;
   typeParameters: TypeParameterNode[];
 }
 
-interface IdentifierNode extends NodeBase {
+export interface IdentifierNode extends NodeBase {
   type: 'identifier';
   name: string;
 }
 
-interface ReferenceNode extends NodeBase {
+export interface ReferenceNode extends NodeBase {
   type: 'reference';
   local: string;
   imported: string;
@@ -185,7 +190,7 @@ interface ReferenceNode extends NodeBase {
   specifier: string;
 }
 
-interface AliasNode extends NodeBase {
+export interface AliasNode extends NodeBase {
   type: 'alias';
   id: string;
   name: string;
@@ -193,19 +198,19 @@ interface AliasNode extends NodeBase {
   typeParameters: TypeParameterNode[];
 }
 
-interface TypeOperatorNode extends NodeBase {
+export interface TypeOperatorNode extends NodeBase {
   type: 'typeOperator';
   operator: string;
   value: Node;
 }
 
 /** I don't think this actually gets hit */
-interface KeyofNode extends NodeBase {
+export interface KeyofNode extends NodeBase {
   type: 'keyof';
   keyof: Node;
 }
 
-interface ConditionalNode extends NodeBase {
+export interface ConditionalNode extends NodeBase {
   type: 'conditional';
   checkType: Node;
   extendsType: Node;
@@ -213,13 +218,13 @@ interface ConditionalNode extends NodeBase {
   falseType: Node;
 }
 
-interface IndexedAccessNode extends NodeBase {
+export interface IndexedAccessNode extends NodeBase {
   type: 'indexedAccess';
   objectType: Node;
   indexType: Node;
 }
 
-interface LinkNode extends NodeBase {
+export interface LinkNode extends NodeBase {
   type: 'link';
   id: string;
 }

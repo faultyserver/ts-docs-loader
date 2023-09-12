@@ -1,0 +1,58 @@
+.tableWrapper {
+  width: 100%;
+}
+.table {
+  border-collapse: collapse;
+  color: #000;
+}
+
+.tableHeader {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 2px solid #999;
+}
+
+.tableCell {
+  padding: 8px;
+  border-bottom: 1px solid #bbb;
+  vertical-align: top;
+  font-size: 14px;
+  line-height: 20px;
+}
+.tableCell:first-child {
+  margin-top: 0;
+}
+
+.tableCell:last-child {
+  margin-bottom: 0;
+}
+.details summary {
+  width: 100%;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.caret {
+  display: block;
+  height: 16px;
+  width: 16px;
+
+  --__rotation: 0deg;
+  transform: rotate(var(--__rotation));
+}
+.details[open] .caret {
+  --__rotation: 90deg;
+}
+
+.caret svg {
+  display: block;
+}
+
+.requiredDot {
+  display: inline-block;
+  margin-left: 2px;
+  font-weight: 900;
+  color: #b22;
+}
