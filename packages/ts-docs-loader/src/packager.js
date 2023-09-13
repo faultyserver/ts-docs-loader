@@ -104,9 +104,9 @@ module.exports = function packager(thisAsset, dependencies) {
     //
     // (symbols is an array of [exported, local] mappings, where `local` is the
     // name from the source, and `exported` is the aliased name).
-    for (const [exported] of asset.symbols) {
+    for (const [local, exported] of asset.symbols) {
       // Get the source module and exported name of the symbol.
-      const {asset: resolvedAsset, exportSymbol} = getSymbolResolution(asset, exported);
+      const {asset: resolvedAsset, exportSymbol} = getSymbolResolution(asset, local);
       // Get the processed module that the symbol comes from (either this module or the one resolved above)
       const processed = resolvedAsset.id === asset.id ? obj : processAsset(resolvedAsset);
 
@@ -131,12 +131,13 @@ module.exports = function packager(thisAsset, dependencies) {
       }
     }
 
-    // 5. For every module that this module depends on, if it also exports
-    // everything from one of its sources, then recursively add those to
-    // the resolved set as well.
+    // 5. For every module that this module exports from on, if everything is
+    // exported, recursively add those to the resolved set as well.
     for (const dep of Object.values(dependencies)) {
       const wildcard = dep.symbols.get('*');
-      // ? only checking if it's exported without a namespace.
+      // Only need to process true wildcards here, since renamed wildcard
+      // exports are handled as symbols of the asset itself, not just re-exports
+      // of dependencies like unnamed wildcards are.
       if (wildcard === '*') {
         // Duplicate all of the exports from the dependency
         Object.assign(res, processAsset(dep));

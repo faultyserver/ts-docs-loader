@@ -14,6 +14,10 @@ export function createTestLoader(files) {
 
   /** @type {(thisFilePath: string, symbols?: string[]) => Promise<import('../src/loader').LoadResult>} */
   return async function testLoader(thisFilePath, symbols = undefined) {
+    if (files[thisFilePath] == null) {
+      throw `Attempted to load undeclared file ${thisFilePath}`;
+    }
+
     IN_PROGRESS_SET.add(thisFilePath);
     const context = path.dirname(thisFilePath);
 
@@ -28,14 +32,14 @@ export function createTestLoader(files) {
       getContext() {
         return context;
       },
-      isCurrentlyProcessing(resource) {
-        return IN_PROGRESS_SET.has(resource);
+      isCurrentlyProcessing(filePath) {
+        return IN_PROGRESS_SET.has(filePath);
       },
       async resolve(filePath) {
         return filePath;
       },
-      async importModule(resource, symbols) {
-        return testLoader(resource, symbols);
+      async importModule(filePath, symbols) {
+        return testLoader(filePath, symbols);
       },
     };
 

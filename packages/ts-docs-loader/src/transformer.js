@@ -55,8 +55,10 @@ module.exports = class Transformer {
       for (const [local, source] of symbols.entries()) {
         existing.symbols.set(local, source);
       }
+      // Otherwise, it's a new dependency and must be added
+    } else {
+      this.dependencies.push({path: filePath, symbols});
     }
-    this.dependencies.push({path: filePath, symbols});
   }
 
   /**

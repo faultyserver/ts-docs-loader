@@ -103,6 +103,30 @@ test('skips unrequested exports', async () => {
   assert(data.exports['Foo'] instanceof Object);
 });
 
+test('handles * exports mixed with named exports', async () => {
+  // When a loader request only asks for certain symbols, it should completely
+  // skip anything that's not depended on. This barrel exports from non-existent
+  // files, but because they aren't requested, the files don't get looked up
+  // and fail. If they weren't skipped, it would fail.
+  const loader = createTestLoader({
+    foo: `export interface Foo {};`,
+    barrel: `
+      export {Foo} from 'foo';
+    `,
+    index: `
+      export * from 'barrel';
+      export {Foo as Bar} from 'barrel';
+    `,
+  });
+  const data = await loader('index');
+  console.log(data);
+  // The renamed export should exist
+  assert(data.exports['Bar'] instanceof Object);
+  assert(data.exports['Bar']['id'] == 'foo:Foo');
+  // But the passthrough from the wildcard should also be there.
+  assert(data.exports['Foo'] instanceof Object);
+});
+
 describe('barrel imports', () => {
   // This really just checks that it doesn't timeout. No actual assertion.
   test(`doesn't hang indefinitely when encountering a circle`, async () => {

@@ -21,9 +21,9 @@ const Transformer = require('./transformer');
  * @property {() => string} getFilePath
  * @property {() => string} getContext
  * @property {(filePath: string) => Promise<string>} getSource
- * @property {(filePath: string, symbols: string[]) => Promise<LoadResult>} importModule
+ * @property {(filePath: string, symbols?: string[]) => Promise<LoadResult>} importModule
  * @property {(path: string) => Promise<string>} resolve
- * @property {(filePath: string, symbols: string[]) => boolean} isCurrentlyProcessing
+ * @property {(filePath: string, symbols?: string[]) => boolean} isCurrentlyProcessing
  */
 
 module.exports = class Loader {
@@ -71,13 +71,20 @@ module.exports = class Loader {
     for (const dependency of dependencies) {
       const resolvedPath = await this.bundler.resolve(dependency.path);
 
-      const symbolsFromDependency = Array.from(dependency.symbols.values());
       // If somehow the dependency exists but there aren't any symbols, it can
       // be skipped entirely.
-      if (symbolsFromDependency.length === 0) continue;
+      const dependencySymbols = Array.from(dependency.symbols.values());
+      if (dependencySymbols.length === 0) continue;
 
-      // Really naive circular dependencies atm.
-      if (this.bundler.isCurrentlyProcessing(resolvedPath, symbolsFromDependency)) {
+      // If there's a wildcard in the list of requested symbols, then we need
+      // to resolve all of them, so the requestedSymbols can/should be blank.
+      const requestedSymbols = dependencySymbols.includes('*') ? undefined : dependencySymbols;
+
+      // Really naive circular dependencies atm. Just returning a blank result
+      // if the requested file is already in progress. Using `requestedSymbols`
+      // here helps reduce instances of this, but still would be good to create
+      // a stubbed instance or something so that links are at least resolved.
+      if (this.bundler.isCurrentlyProcessing(resolvedPath, requestedSymbols)) {
         resolvedDependencies[dependency.path] = {
           id: resolvedPath,
           exports: {},
@@ -87,7 +94,7 @@ module.exports = class Loader {
         continue;
       }
 
-      const data = await this.bundler.importModule(resolvedPath, symbolsFromDependency);
+      const data = await this.bundler.importModule(resolvedPath, requestedSymbols);
       resolvedDependencies[dependency.path] = {
         id: resolvedPath,
         exports: data.exports,
@@ -194,7 +201,7 @@ module.exports = class Loader {
 
             // export * as Foo from 'foo';
             if (specifier.type === 'ExportNamespaceSpecifier') {
-              dependencySymbols.set('*', exportName);
+              dependencySymbols.set(exportName, '*');
               // export {Foo as Bar} from 'foo';
             } else {
               const sourceName = specifier['local'].name;
@@ -255,6 +262,9 @@ module.exports = class Loader {
         }
       },
 
+      // export * from 'foo';
+      // Note that `export * as Foo from 'foo'` is considered an ExportNamedDeclaration
+      // in babel, but other parsers consider that an ExportAllDeclaration.
       ExportAllDeclaration(path) {
         transformer.addDependency(path.node.source.value, new Map([['*', '*']]));
       },
