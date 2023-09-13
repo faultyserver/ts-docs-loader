@@ -12,8 +12,8 @@ export function createTestLoader(files) {
    */
   const IN_PROGRESS_SET = new Set();
 
-  /** @type {(thisFilePath: string) => Promise<import('../src/loader').LoadResult>} */
-  return async function testLoader(thisFilePath) {
+  /** @type {(thisFilePath: string, symbols?: string[]) => Promise<import('../src/loader').LoadResult>} */
+  return async function testLoader(thisFilePath, symbols = undefined) {
     IN_PROGRESS_SET.add(thisFilePath);
     const context = path.dirname(thisFilePath);
 
@@ -34,13 +34,13 @@ export function createTestLoader(files) {
       async resolve(filePath) {
         return filePath;
       },
-      async importModule(resource) {
-        return testLoader(resource);
+      async importModule(resource, symbols) {
+        return testLoader(resource, symbols);
       },
     };
 
     const loader = new Loader(adapter);
-    const result = await loader.load(thisFilePath).catch((e) => {
+    const result = await loader.load(thisFilePath, symbols).catch((e) => {
       throw e;
     });
 

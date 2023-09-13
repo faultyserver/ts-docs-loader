@@ -21,7 +21,57 @@ test('exporting from another file', async () => {
   assert(data.exports['Base'] instanceof Object);
 });
 
+test('renaming an export', async () => {
+  const loader = createTestLoader({
+    base: `
+      export interface Base {
+        value: number;
+      }
+    `,
+    index: `
+      export {Base as Foo} from "base";
+    `,
+  });
+  const data = await loader('index');
+  assert(!('Base' in data.exports));
+  assert(data.exports['Foo'] instanceof Object);
+});
+
+test('exporting an import separately', async () => {
+  const loader = createTestLoader({
+    base: `
+      export interface Base {
+        value: number;
+      }
+    `,
+    index: `
+      import {Base} from "base";
+      export {Base as Foo};
+    `,
+  });
+  const data = await loader('index');
+  assert(data.exports['Foo'] instanceof Object);
+});
+
+test('proxying an import through an intermediate type', async () => {
+  const loader = createTestLoader({
+    base: `
+      export interface Base {
+        value: number;
+      }
+    `,
+    index: `
+      import {Base} from "base";
+      type Foo = Base;
+      export {Foo};
+    `,
+  });
+  const data = await loader('index');
+  assert(data.exports['Foo'] instanceof Object);
+});
+
 test('skips unused dependencies', async () => {
+  // If dependencies aren't skipped, this would fail, since 'foo' does not exist.
   const loader = createTestLoader({
     index: `
       import {F} from 'foo';
@@ -32,6 +82,25 @@ test('skips unused dependencies', async () => {
   });
   const data = await loader('index');
   assert(data.exports['Base'] instanceof Object);
+});
+
+test('skips unrequested exports', async () => {
+  // When a loader request only asks for certain symbols, it should completely
+  // skip anything that's not depended on. This barrel exports from non-existent
+  // files, but because they aren't requested, the files don't get looked up
+  // and fail. If they weren't skipped, it would fail.
+  const loader = createTestLoader({
+    foo: `export interface Foo {};`,
+    barrel: `
+      export {Bar} from 'bar';
+      export {Foo} from 'foo';
+    `,
+    index: `
+      export {Foo} from 'barrel';
+    `,
+  });
+  const data = await loader('index');
+  assert(data.exports['Foo'] instanceof Object);
 });
 
 describe('barrel imports', () => {

@@ -1,3 +1,4 @@
+// @ts-check
 const babel = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 const t = require('@babel/types');
@@ -6,6 +7,9 @@ const packager = require('./packager');
 const Transformer = require('./transformer');
 
 /**
+ * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
+ * @typedef {import('@faulty/ts-docs-node-types').Node} Node
+ * @typedef {import('./transformer').Dependency} Dependency
  * @typedef {{exports: object, links: object}} LoadResult
  *
  * @typedef TransformResult
@@ -17,15 +21,15 @@ const Transformer = require('./transformer');
  * @property {() => string} getFilePath
  * @property {() => string} getContext
  * @property {(filePath: string) => Promise<string>} getSource
- * @property {(filePath: string) => Promise<LoadResult>} importModule
+ * @property {(filePath: string, symbols: string[]) => Promise<LoadResult>} importModule
  * @property {(path: string) => Promise<string>} resolve
  * @property {(filePath: string) => boolean} isCurrentlyProcessing
  */
 
 module.exports = class Loader {
-  /** @param {Bundler} bundler */
+  /** @param {Bundler} bundler An adapter to the host bundler to load code, resolve module dependencies, and recurse with. */
   constructor(bundler) {
-    /** @type {Bundler}*/
+    /** @type {Bundler} */
     this.bundler = bundler;
   }
 
@@ -36,16 +40,16 @@ module.exports = class Loader {
    * and finally packages all of the data from the module and its dependencies
    * into a single result.
    *
-   * @type {(filePath: string) => Promise<LoadResult>}
+   * @type {(filePath: string, symbols?: string[]) => Promise<LoadResult>}
    */
-  async load(filePath) {
+  async load(filePath, symbols) {
     const source = await this.bundler.getSource(filePath);
-    const ast = this.parse(source);
-    const result = this.transform(ast, this.bundler.getFilePath());
+    const ast = this.parse(source, filePath);
+    const result = this.transform(ast, filePath, symbols);
 
     const resolvedDependencies = await this.recurseDependencies(result.dependencies);
 
-    const thisAsset = {id: filePath, exports: result.exportedNodes, symbols: result.symbols, links: result.links};
+    const thisAsset = {id: filePath, exports: result.exportedNodes, symbols: result.symbols, links: {}};
     return packager(thisAsset, resolvedDependencies);
   }
 
@@ -54,9 +58,10 @@ module.exports = class Loader {
    * on them.
    *
    * @param {Dependency[]} dependencies
-   * @returns {Promise<Record<string, Dependency>>}
+   * @returns {Promise<Record<string, Asset>>}
    */
   async recurseDependencies(dependencies) {
+    /** @type {Record<string, Asset>} */
     const resolvedDependencies = {};
     for (const dependency of dependencies) {
       const resolvedPath = await this.bundler.resolve(dependency.path);
@@ -72,7 +77,8 @@ module.exports = class Loader {
         continue;
       }
 
-      const data = await this.bundler.importModule(resolvedPath);
+      const symbolsFromDependency = Array.from(dependency.symbols.values());
+      const data = await this.bundler.importModule(resolvedPath, symbolsFromDependency);
       resolvedDependencies[dependency.path] = {
         id: resolvedPath,
         exports: data.exports,
@@ -89,10 +95,11 @@ module.exports = class Loader {
    * it being a babel-compatible AST that handles TypeScript.
    *
    * @param {string} source
+   * @param {string} filePath
    * @returns {import('@babel/parser').ParseResult<import('@babel/types').File>}
    */
-  parse(source) {
-    const isAmbient = this.bundler.getFilePath().endsWith('.d.ts');
+  parse(source, filePath) {
+    const isAmbient = filePath.endsWith('.d.ts');
 
     return babel.parse(source, {
       allowReturnOutsideFunction: true,
@@ -115,9 +122,10 @@ module.exports = class Loader {
    *
    * @param {import('@babel/parser').ParseResult<import('@babel/types').File>} ast
    * @param {string} filePath
+   * @param {string[]=} requestedSymbols
    * @returns {TransformResult}
    */
-  transform(ast, filePath) {
+  transform(ast, filePath, requestedSymbols) {
     const transformer = new Transformer(filePath);
     /**
      * Record of entities that are exported from this file.
@@ -134,9 +142,16 @@ module.exports = class Loader {
      * module.
      *
      * EX: export {foo as Bar, abc}; -> {Bar => foo, abc => abc}
+     *
+     *
      * @type {Map<string, string>}
      */
     const symbols = new Map();
+
+    /** @type {(symbol: string) => boolean} */
+    function isSymbolRequested(symbol) {
+      return requestedSymbols == null || requestedSymbols.includes(symbol);
+    }
 
     traverse(ast, {
       // Babel doesn't consider type statements as identifiers, so they need to be
@@ -155,26 +170,43 @@ module.exports = class Loader {
         }
       },
       ExportNamedDeclaration(path) {
+        // export {Foo} from 'foo';
         if (path.node.source) {
+          // `dependencySymbols` is flipped from `symbols`, tracking the
+          // export name (`as Bar`) as the key and the local name (`Foo as`)
+          // as the value, so that the mapping can be looked up when packaging.
           const dependencySymbols = new Map();
           for (const specifier of path.node.specifiers) {
+            const exportName = specifier.exported['name'];
+            if (!isSymbolRequested(exportName)) continue;
+
+            // This module only cares about the actual exported name
+            symbols.set(exportName, exportName);
+
+            // export * as Foo from 'foo';
             if (specifier.type === 'ExportNamespaceSpecifier') {
-              symbols.set(specifier.exported['name'], specifier.exported['name']);
-              dependencySymbols.set('*', specifier.exported['name']);
+              dependencySymbols.set('*', exportName);
+              // export {Foo as Bar} from 'foo';
             } else {
-              symbols.set(specifier.exported['name'], specifier.exported['name']);
-              dependencySymbols.set(specifier['local'].name, specifier.exported['name']);
+              const sourceName = specifier['local'].name;
+              dependencySymbols.set(exportName, sourceName);
             }
           }
+
+          if (dependencySymbols.size == 0) return;
+
           transformer.addDependency(path.node.source.value, dependencySymbols);
+          // export const Foo = {};
         } else if (path.node.declaration) {
           if ('id' in path.node.declaration && t.isIdentifier(path.node.declaration.id)) {
             const name = path.node.declaration.id.name;
+            if (!isSymbolRequested(name)) return;
+
             symbols.set(name, name);
             const prev = exportedNodes[name];
             // @ts-expect-error .get() is wild
             const val = transformer.processExport(path.get('declaration'));
-            if (val) {
+            if (val != null) {
               exportedNodes[name] = val;
               if (exportedNodes[name].description == null && prev?.description) {
                 exportedNodes[name].description = prev.description;
@@ -183,25 +215,32 @@ module.exports = class Loader {
           } else {
             const identifiers = t.getBindingIdentifiers(path.node.declaration);
             for (const [index, id] of Object.keys(identifiers).entries()) {
+              const name = identifiers[id].name;
+              if (!isSymbolRequested(name)) continue;
+
               exportedNodes[identifiers[id].name] = transformer.processExport(
                 path.get('declaration.declarations')[index],
               );
               symbols.set(identifiers[id].name, identifiers[id].name);
             }
           }
+          // export {Bar, Foo as F};
         } else if (path.node.specifiers.length > 0) {
           for (const specifier of path.node.specifiers) {
             // @ts-expect-error specifier.local is guaranteed to exist here
-            const binding = path.scope.getBinding(specifier.local.name);
-            if (binding) {
-              const value = transformer.processExport(binding.path);
-              if (value.name != null) {
-                // @ts-expect-error exported.name is guaranteed to exist here
-                value.name = specifier.exported.name;
-              }
+            const localName = specifier.local.name;
+            if (!isSymbolRequested(localName)) continue;
+
+            const bindingPath = path.scope.getBinding(localName)?.path ?? transformer.globalTypes.get(localName);
+            if (bindingPath) {
+              const value = transformer.processExport(bindingPath);
               // @ts-expect-error exported.name is guaranteed to exist here
-              exportedNodes[specifier.exported.name] = value;
-              symbols.set(specifier.exported['name'], specifier['local'].name);
+              const exportName = specifier.exported.name;
+              if (value.name != null) {
+                value.name = exportName;
+              }
+              exportedNodes[exportName] = value;
+              symbols.set(specifier['local'].name, exportName);
             }
           }
         }

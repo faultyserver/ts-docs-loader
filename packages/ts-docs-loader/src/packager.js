@@ -102,8 +102,8 @@ module.exports = function packager(thisAsset, dependencies) {
     // presentable object. The function of this is appending all of the
     // referenced types from other files to the set of types defined locally.
     //
-    // (symbols is an array of [source, local] mappings, where `source` is the
-    // name from the source, and `local` is the aliased name).
+    // (symbols is an array of [exported, local] mappings, where `local` is the
+    // name from the source, and `exported` is the aliased name).
     for (const [exported] of asset.symbols) {
       // Get the source module and exported name of the symbol.
       const {asset: resolvedAsset, exportSymbol} = getSymbolResolution(asset, exported);
@@ -134,7 +134,7 @@ module.exports = function packager(thisAsset, dependencies) {
     // 5. For every module that this module depends on, if it also exports
     // everything from one of its sources, then recursively add those to
     // the resolved set as well.
-    for (const [, dep] of Object.entries(dependencies)) {
+    for (const dep of Object.values(dependencies)) {
       const wildcard = dep.symbols.get('*');
       // ? only checking if it's exported without a namespace.
       if (wildcard === '*') {
