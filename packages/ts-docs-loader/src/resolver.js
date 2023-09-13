@@ -17,7 +17,7 @@ module.exports = function getTSResolver(sourcePath) {
 
   let compilerOptions;
   if (tsConfigPath != null) {
-    const configContent = fs.readFileSync(tsConfigPath);
+    const configContent = ts.readConfigFile(tsConfigPath, ts.sys.readFile).config;
     const tsConfigObject = ts.parseJsonConfigFileContent(configContent, ts.sys, context);
     compilerOptions = tsConfigObject.options;
   } else {

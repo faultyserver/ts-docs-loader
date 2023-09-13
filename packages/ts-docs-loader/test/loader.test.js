@@ -119,7 +119,6 @@ test('handles * exports mixed with named exports', async () => {
     `,
   });
   const data = await loader('index');
-  console.log(data);
   // The renamed export should exist
   assert(data.exports['Bar'] instanceof Object);
   assert(data.exports['Bar']['id'] == 'foo:Foo');
