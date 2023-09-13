@@ -23,7 +23,7 @@ const Transformer = require('./transformer');
  * @property {(filePath: string) => Promise<string>} getSource
  * @property {(filePath: string, symbols: string[]) => Promise<LoadResult>} importModule
  * @property {(path: string) => Promise<string>} resolve
- * @property {(filePath: string) => boolean} isCurrentlyProcessing
+ * @property {(filePath: string, symbols: string[]) => boolean} isCurrentlyProcessing
  */
 
 module.exports = class Loader {
@@ -39,6 +39,11 @@ module.exports = class Loader {
    * then recurses through all of the found dependencies to get their content,
    * and finally packages all of the data from the module and its dependencies
    * into a single result.
+   *
+   * If `symbols` is given, only those symbols will be processed and returned,
+   * allowing for granular traversal of dependencies and helping to avoid many
+   * circular dependency problems. Otherwise, all symbols defined in the asset
+   * will be processed.
    *
    * @type {(filePath: string, symbols?: string[]) => Promise<LoadResult>}
    */
@@ -66,8 +71,13 @@ module.exports = class Loader {
     for (const dependency of dependencies) {
       const resolvedPath = await this.bundler.resolve(dependency.path);
 
+      const symbolsFromDependency = Array.from(dependency.symbols.values());
+      // If somehow the dependency exists but there aren't any symbols, it can
+      // be skipped entirely.
+      if (symbolsFromDependency.length === 0) continue;
+
       // Really naive circular dependencies atm.
-      if (this.bundler.isCurrentlyProcessing(resolvedPath)) {
+      if (this.bundler.isCurrentlyProcessing(resolvedPath, symbolsFromDependency)) {
         resolvedDependencies[dependency.path] = {
           id: resolvedPath,
           exports: {},
@@ -77,7 +87,6 @@ module.exports = class Loader {
         continue;
       }
 
-      const symbolsFromDependency = Array.from(dependency.symbols.values());
       const data = await this.bundler.importModule(resolvedPath, symbolsFromDependency);
       resolvedDependencies[dependency.path] = {
         id: resolvedPath,

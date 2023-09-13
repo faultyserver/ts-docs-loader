@@ -33,3 +33,52 @@ test('exporting from another file', async () => {
   const data = getEntrypointOutput(stats);
   assert(data.exports['Base'] instanceof Object);
 });
+
+test('handles requestedSymbols to select processed exports', async () => {
+  const fixtures = createFixtures({
+    'foo.tsx': `export interface Foo {};`,
+    'barrel.tsx': `
+      export {Bar} from './bar';
+      export {Foo} from './foo';
+    `,
+    'index.tsx': `
+      export {Foo} from './barrel';
+    `,
+  });
+  const stats = await compiler(fixtures['index.tsx']);
+  const data = getEntrypointOutput(stats);
+  assert(data.exports['Foo'] instanceof Object);
+});
+
+test('handles looping imports through a barrel', async () => {
+  const fixtures = createFixtures({
+    'barrel.tsx': `
+      export {Bar} from './bar';
+      export {Baz} from './baz';
+      export {Foo} from './foo';
+    `,
+    'foo.tsx': `
+      import {Bar} from './barrel';
+      export interface Foo extends Bar {};
+    `,
+    'bar.tsx': `
+      import {Baz} from './barrel';
+      export interface Bar extends Baz {};
+    `,
+    'baz.tsx': `
+      export interface Baz {
+        bazProp: boolean;
+      };
+    `,
+    'index.tsx': `
+      export {Foo} from './barrel';
+    `,
+  });
+  const stats = await compiler(fixtures['index.tsx']);
+  const data = getEntrypointOutput(stats);
+  console.log(JSON.stringify(data, null, 2));
+  assert(data.exports['Foo'] instanceof Object);
+  // Testing that the interfaces merged into Foo means that it
+  // was able to resolve everything in the chain and not shortcut out.
+  assert(data.exports['Foo']['properties']['bazProp'] instanceof Object);
+});

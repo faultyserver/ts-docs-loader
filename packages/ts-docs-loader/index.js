@@ -1,11 +1,5 @@
 // @ts-check
 
-/**
- * Adapted from parcel-transformer-docs and parcel-packager-docs from Adobe Spectrum.
- *
- * See https://github.com/adobe/react-spectrum/blob/main/packages/dev/parcel-transformer-docs/DocsTransformer.js.
- */
-
 const thisLoaderPath = require.resolve('./index.js');
 
 const Loader = require('./src/loader');
@@ -31,12 +25,11 @@ module.exports = async function docsLoader(source) {
   const {context, importModule: webpackImport, resourcePath} = this;
   const callback = this.async();
 
-  IN_PROGRESS_SET.add(this.resourcePath);
+  // resourceQuery includes the `?`, so it needs to get sliced off.
+  const requestedSymbols = this.resourceQuery.length > 0 ? this.resourceQuery.slice(1).split(',') : undefined;
 
-  const resolve = this.getResolve({
-    extensions: ['.ts', '.tsx', '.d.ts', '.js'],
-    mainFields: ['source', 'types', 'main'],
-  });
+  IN_PROGRESS_SET.add(this.resource);
+
   const tsResolver = getTSResolver(this.resourcePath);
 
   /** @type {import('./src/loader').Bundler} */
@@ -50,8 +43,9 @@ module.exports = async function docsLoader(source) {
     getContext() {
       return context;
     },
-    isCurrentlyProcessing(filePath) {
-      return IN_PROGRESS_SET.has(filePath);
+    isCurrentlyProcessing(filePath, symbols) {
+      const resource = `${filePath}?${symbols.join(',')}`;
+      return IN_PROGRESS_SET.has(resource);
     },
     async resolve(path) {
       const resolvedPath = tsResolver(path);
@@ -60,8 +54,9 @@ module.exports = async function docsLoader(source) {
       }
       return resolvedPath;
     },
-    async importModule(filePath) {
-      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}`, {}).catch((e) => {
+    async importModule(filePath, requestedSymbols) {
+      const symbolQuery = requestedSymbols.join(',');
+      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}?${symbolQuery}`, {}).catch((e) => {
         callback(e);
       });
 
@@ -70,12 +65,12 @@ module.exports = async function docsLoader(source) {
   };
 
   const loader = new Loader(adapter);
-  const result = await loader.load(this.resourcePath).catch((e) => {
+  const result = await loader.load(this.resourcePath, requestedSymbols).catch((e) => {
     callback(e);
     throw e;
   });
 
   const code = `export default ${JSON.stringify(result)};`;
   callback(null, code);
-  IN_PROGRESS_SET.delete(this.resourcePath);
+  IN_PROGRESS_SET.delete(this.resource);
 };
