@@ -57,7 +57,6 @@ module.exports = async function docsLoader(source) {
     },
     async importModule(filePath, requestedSymbols) {
       const symbolQuery = requestedSymbols != null ? `?${requestedSymbols.join(',')}` : '';
-      console.log(`!!${thisLoaderPath}!${filePath}${symbolQuery}`);
       const result = await webpackImport(`!!${thisLoaderPath}!${filePath}${symbolQuery}`, {}).catch((e) => {
         callback(e);
       });

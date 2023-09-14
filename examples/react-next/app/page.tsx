@@ -4,7 +4,6 @@ import {ComponentAPI} from '@/components/PropTable';
 import docs from '!doc!@/components/ExampleComponents';
 
 export default function Home() {
-  console.log(docs);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div>

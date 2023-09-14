@@ -1,4 +1,4 @@
-import {ComponentType} from 'react';
+import * as React from 'react';
 
 /**
  * React Native Input components have a broad set of properties to control them,
@@ -99,7 +99,7 @@ export interface InputAttachmentProps {
    * Icon to render at the leading edge of the input. Only redesign icons should
    * be used here. When rendering, fallbacks will be omitted.
    */
-  leadingIcon?: ComponentType;
+  leadingIcon?: React.ComponentType;
   /**
    * Icon to render at the trailing edge of the input. Only redesign icons should
    * be used here. When rendering, fallbacks will be omitted.
@@ -107,7 +107,7 @@ export interface InputAttachmentProps {
    * If the input is clearable, the trailing attachment will be replaced by a
    * button to clear the input when it contains a value.
    */
-  trailingIcon?: ComponentType;
+  trailingIcon?: React.ComponentType;
   /**
    * Text to render at the leading edge of the input. Attachment text should
    * generally be kept as short as possible to preserve space for the input itself.
