@@ -275,7 +275,7 @@ module.exports = class Packager {
 
       // Resolve `Omit<Type, Keys>` structures.
       if (t && t.type === 'identifier' && t.name === 'Omit' && application) {
-        return performOmit(this, application[0], application[1]);
+        return performOmit(this.nodeResolver, application[0], application[1]);
       }
 
       // If this is just an identifier and references a type parameter that is

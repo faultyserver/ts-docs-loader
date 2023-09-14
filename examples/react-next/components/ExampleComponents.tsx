@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {TextInputProps} from 'react-native';
 
 /**
  * React Native Input components have a broad set of properties to control them,
@@ -142,7 +143,8 @@ export interface InputAttachmentProps {
 }
 
 interface ExampleInputProps
-  extends InputValueProps<string>,
+  extends Omit<TextInputProps, DisallowedNativeInputProps>,
+    InputValueProps<string>,
     InputStyleProps,
     InputAttachmentProps,
     ClearableProps,
