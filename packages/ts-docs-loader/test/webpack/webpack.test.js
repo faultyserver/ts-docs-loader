@@ -76,7 +76,7 @@ test('handles looping imports through a barrel', async () => {
   });
   const stats = await compiler(fixtures['index.tsx']);
   const data = getEntrypointOutput(stats);
-  console.log(JSON.stringify(data, null, 2));
+
   assert(data.exports['Foo'] instanceof Object);
   // Testing that the interfaces merged into Foo means that it
   // was able to resolve everything in the chain and not shortcut out.

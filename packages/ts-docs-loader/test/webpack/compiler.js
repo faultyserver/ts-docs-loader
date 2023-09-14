@@ -57,7 +57,7 @@ export default function compiler(entrypoint, options = {}) {
  */
 export function createFixtures(files) {
   if (fs.existsSync(FIXTURES_DIR)) {
-    fs.rmdirSync(FIXTURES_DIR, {recursive: true});
+    fs.rmSync(FIXTURES_DIR, {recursive: true});
   }
   fs.mkdirSync(FIXTURES_DIR, {recursive: true});
 

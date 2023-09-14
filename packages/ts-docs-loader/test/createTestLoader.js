@@ -23,8 +23,8 @@ export function createTestLoader(files) {
 
     /** @type {import('../src/loader').Bundler} */
     const adapter = {
-      async getSource() {
-        return files[thisFilePath];
+      async getSource(filePath) {
+        return files[filePath];
       },
       getFilePath() {
         return thisFilePath;
