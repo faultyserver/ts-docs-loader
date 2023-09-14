@@ -10,7 +10,7 @@
  * @param {Node} base
  * @returns {Node}
  */
-export function mergeExtensions(base) {
+module.exports = function mergeExtensions(base) {
   // If it's a proxy type, like a type alias or a generic type, just get the base type.
   if (base.type === 'application') {
     base = base.base;
@@ -55,7 +55,7 @@ export function mergeExtensions(base) {
     extends: exts,
     description: base.description,
   };
-}
+};
 
 /**
  * Merge all properties from `source` into `target`, but only if `target` does

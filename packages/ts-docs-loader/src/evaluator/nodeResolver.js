@@ -2,7 +2,7 @@
  * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  */
-export class NodeResolver {
+module.exports = class NodeResolver {
   /**
    * @param {Record<string, Node>} nodes
    * @param {Record<string, Node>} links
@@ -90,4 +90,4 @@ export class NodeResolver {
 
     return obj;
   }
-}
+};

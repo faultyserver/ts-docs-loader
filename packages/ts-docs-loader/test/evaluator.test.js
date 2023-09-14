@@ -1,39 +1,8 @@
 import {describe, test} from '@jest/globals';
 import assert from 'node:assert/strict';
 
-import {NodeResolver} from '../src/evaluator/nodeResolver';
-import {performOmit} from '../src/evaluator/omit';
-
-/**
- * @typedef {import('@faulty/ts-docs-node-types').InterfaceNode} InterfaceNode
- * @typedef {import('@faulty/ts-docs-node-types').UnionNode} UnionNode
- */
-
-/**
- * @param {string} node
- * @param {Record<string, string>} nodes Map of property names to their type
- * @returns {InterfaceNode}
- */
-function makeInterface(name, nodes) {
-  return {
-    type: 'interface',
-    id: name,
-    name,
-    extends: [],
-    properties: Object.fromEntries(
-      Object.entries(nodes).map(([name, valueType]) => [
-        name,
-        {
-          type: 'property',
-          name,
-          value: {type: valueType},
-          optional: false,
-        },
-      ]),
-    ),
-    typeParameters: [],
-  };
-}
+import NodeResolver from '../src/evaluator/nodeResolver';
+import performOmit from '../src/evaluator/omit';
 
 function makeResolver(nodes = {}) {
   return new NodeResolver(nodes, {}, {});

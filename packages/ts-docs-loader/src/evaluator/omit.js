@@ -1,8 +1,6 @@
 /** @typedef {import('@faulty/ts-docs-node-types').Node} Node */
 /** @typedef {import('../packager').Packager} Packager */
 
-import Packager from '../packager';
-
 const OMITTABLE_TYPES = ['interface', 'object'];
 
 /**
@@ -13,7 +11,7 @@ const OMITTABLE_TYPES = ['interface', 'object'];
  * @param {Node} toOmit
  * @returns {Node}
  */
-export function performOmit(packager, base, toOmit) {
+module.exports = function performOmit(packager, base, toOmit) {
   base = packager.resolveValue(base);
   toOmit = packager.resolveValue(toOmit);
 
@@ -49,4 +47,4 @@ export function performOmit(packager, base, toOmit) {
     ...base,
     properties,
   };
-}
+};

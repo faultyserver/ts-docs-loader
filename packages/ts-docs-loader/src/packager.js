@@ -1,10 +1,10 @@
 /* eslint-disable no-use-before-define */
 // @ts-check
 
-const {mergeExtensions} = require('./evaluator/extends');
-const {NodeResolver} = require('./evaluator/nodeResolver');
-const {performOmit} = require('./evaluator/omit');
-const {walk} = require('./evaluator/walk');
+const mergeExtensions = require('./evaluator/extends');
+const NodeResolver = require('./evaluator/nodeResolver');
+const performOmit = require('./evaluator/omit');
+const walk = require('./evaluator/walk');
 
 /**
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node

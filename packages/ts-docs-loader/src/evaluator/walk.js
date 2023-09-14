@@ -14,7 +14,7 @@
  *
  * @type {(obj: any, walkerFn: Walker) => any}
  */
-export function walk(obj, walkerFn) {
+module.exports = function walk(obj, walkerFn) {
   // circular is to make sure we don't traverse over an object we visited earlier in the recursion
   const circular = new Set();
 
@@ -55,4 +55,4 @@ export function walk(obj, walkerFn) {
   }
 
   return res;
-}
+};

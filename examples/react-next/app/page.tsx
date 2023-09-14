@@ -1,15 +1,15 @@
 'use client';
 
-import {ComponentAPI, PropTable} from '@/components/PropTable';
-import docs from '!doc!@/components/PropTable';
-import {TypeContext} from '@faulty/ts-docs-type-renderer/react';
+import {ComponentAPI} from '@/components/PropTable';
+import docs from '!doc!@/components/ExampleComponents';
 
 export default function Home() {
+  console.log(docs);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div>
         <h1 className="text-xl font-bold mb-8">ComponentAPI</h1>
-        <ComponentAPI docs={docs} componentName="ComponentAPI" />
+        <ComponentAPI docs={docs} componentName="ExampleInput" />
       </div>
     </main>
   );

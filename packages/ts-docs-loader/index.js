@@ -44,7 +44,8 @@ module.exports = async function docsLoader(source) {
       return context;
     },
     isCurrentlyProcessing(filePath, symbols) {
-      const resource = `${filePath}?${symbols.join(',')}`;
+      const symbolQuery = symbols != null ? `?${symbols.join(',')}` : '';
+      const resource = `${filePath}${symbolQuery}`;
       return IN_PROGRESS_SET.has(resource);
     },
     async resolve(path) {
@@ -55,8 +56,9 @@ module.exports = async function docsLoader(source) {
       return resolvedPath;
     },
     async importModule(filePath, requestedSymbols) {
-      const symbolQuery = requestedSymbols.join(',');
-      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}?${symbolQuery}`, {}).catch((e) => {
+      const symbolQuery = requestedSymbols != null ? `?${requestedSymbols.join(',')}` : '';
+      console.log(`!!${thisLoaderPath}!${filePath}${symbolQuery}`);
+      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}${symbolQuery}`, {}).catch((e) => {
         callback(e);
       });
 
