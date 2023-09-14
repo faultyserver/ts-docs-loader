@@ -17,20 +17,25 @@ const Transformer = require('./transformer');
  * @property {Record<string, any>} exportedNodes
  * @property {Dependency[]} dependencies
  *
- * @typedef Bundler
- * @property {() => string} getFilePath
- * @property {() => string} getContext
- * @property {(filePath: string) => Promise<string>} getSource
- * @property {(filePath: string, symbols?: string[]) => Promise<LoadResult>} importModule
- * @property {(path: string) => Promise<string>} resolve
- * @property {(filePath: string, symbols?: string[]) => boolean} isCurrentlyProcessing
+ * @typedef Host
+ * @property {(filePath: string) => Promise<string>} getSource Get the string content of the given file.
+ * @property {(specifier: string, context: string) => Promise<string>} resolve Resolve an import specifier path to a file path.
+ * @property {import('./cache')} cache
  */
 
 module.exports = class Loader {
-  /** @param {Bundler} bundler An adapter to the host bundler to load code, resolve module dependencies, and recurse with. */
-  constructor(bundler) {
-    /** @type {Bundler} */
-    this.bundler = bundler;
+  /**
+   * Set containing all files that are currently being processed by the loader,
+   * as a naive way of dealing with circular dependencies.
+   *
+   * @type {Set<string>}
+   */
+  inProgress = new Set();
+
+  /** @param {Host} host An adapter to the host bundler to load code, resolve module dependencies, and recurse with. */
+  constructor(host) {
+    /** @type {Host} */
+    this.host = host;
   }
 
   /**
@@ -48,14 +53,24 @@ module.exports = class Loader {
    * @type {(filePath: string, symbols?: string[]) => Promise<LoadResult>}
    */
   async load(filePath, symbols) {
-    const source = await this.bundler.getSource(filePath);
+    const cached = this.host.cache.getResource(filePath, symbols ?? []);
+    if (cached != null) return cached;
+
+    const thisResourceId = JSON.stringify({filePath, symbols});
+    this.inProgress.add(thisResourceId);
+
+    const source = await this.host.getSource(filePath);
     const ast = this.parse(source, filePath);
     const result = this.transform(ast, filePath, symbols);
 
-    const resolvedDependencies = await this.recurseDependencies(result.dependencies);
+    const resolvedDependencies = await this.recurseDependencies(result.dependencies, filePath);
 
     const thisAsset = {id: filePath, exports: result.exportedNodes, symbols: result.symbols, links: {}};
-    return new Packager(thisAsset, resolvedDependencies).run();
+    const docs = new Packager(thisAsset, resolvedDependencies).run();
+
+    this.host.cache.setResourceResult(filePath, symbols ?? [], docs);
+    this.inProgress.delete(thisResourceId);
+    return docs;
   }
 
   /**
@@ -63,13 +78,14 @@ module.exports = class Loader {
    * on them.
    *
    * @param {Dependency[]} dependencies
+   * @param {string} thisFilePath
    * @returns {Promise<Record<string, Asset>>}
    */
-  async recurseDependencies(dependencies) {
+  async recurseDependencies(dependencies, thisFilePath) {
     /** @type {Record<string, Asset>} */
     const resolvedDependencies = {};
     for (const dependency of dependencies) {
-      const resolvedPath = await this.bundler.resolve(dependency.path);
+      const resolvedPath = await this.host.resolve(dependency.path, thisFilePath);
 
       // If somehow the dependency exists but there aren't any symbols, it can
       // be skipped entirely.
@@ -84,7 +100,7 @@ module.exports = class Loader {
       // if the requested file is already in progress. Using `requestedSymbols`
       // here helps reduce instances of this, but still would be good to create
       // a stubbed instance or something so that links are at least resolved.
-      if (this.bundler.isCurrentlyProcessing(resolvedPath, requestedSymbols)) {
+      if (this.inProgress.has(JSON.stringify({filePath: resolvedPath, symbols: requestedSymbols}))) {
         resolvedDependencies[dependency.path] = {
           id: resolvedPath,
           exports: {},
@@ -94,7 +110,7 @@ module.exports = class Loader {
         continue;
       }
 
-      const data = await this.bundler.importModule(resolvedPath, requestedSymbols);
+      const data = await this.load(resolvedPath, requestedSymbols);
       resolvedDependencies[dependency.path] = {
         id: resolvedPath,
         exports: data.exports,

@@ -9,6 +9,6 @@ const THIS_DIR = __dirname;
 
 test('finds and uses the nearest tsconfig for resolving', async () => {
   const resolve = getTSResolver(__filename);
-  assert.equal(resolve('./index.tsx'), `${THIS_DIR}/index.tsx`);
-  assert.equal(resolve('@analias'), `${THIS_DIR}/resolvedalias.tsx`);
+  assert.equal(resolve('./index.tsx', __filename)?.resolvedFileName, `${THIS_DIR}/index.tsx`);
+  assert.equal(resolve('@analias', __filename)?.resolvedFileName, `${THIS_DIR}/resolvedalias.tsx`);
 });

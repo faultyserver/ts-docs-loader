@@ -1,15 +1,10 @@
 // @ts-check
 
-const thisLoaderPath = require.resolve('./index.js');
+const fs = require('node:fs/promises');
 
 const Loader = require('./src/loader');
 const getTSResolver = require('./src/resolver');
-
-/**
- * Map containing all files that are currently being processed by the loader,
- * as a naive way of dealing with circular dependencies.
- */
-const IN_PROGRESS_SET = new Set();
+const LoaderCache = require('./src/cache');
 
 /**
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
@@ -17,61 +12,36 @@ const IN_PROGRESS_SET = new Set();
  * @typedef {import('./src/transformer').Dependency} Dependency
  */
 
+const LOADER_CACHE = new LoaderCache();
+
 /**
- * @this import('webpack').LoaderContext<any>
- * @param {string} source Raw source of the asset
+ * @this {import('webpack').LoaderContext<{cache: LoaderCache}>}
  */
-module.exports = async function docsLoader(source) {
-  const {context, importModule: webpackImport, resourcePath} = this;
+module.exports = async function docsLoader() {
   const callback = this.async();
-
-  // resourceQuery includes the `?`, so it needs to get sliced off.
-  const requestedSymbols = this.resourceQuery.length > 0 ? this.resourceQuery.slice(1).split(',') : undefined;
-
-  IN_PROGRESS_SET.add(this.resource);
-
   const tsResolver = getTSResolver(this.resourcePath);
 
-  /** @type {import('./src/loader').Bundler} */
-  const adapter = {
-    async getSource() {
-      return source;
+  const loader = new Loader({
+    async getSource(filePath) {
+      const content = await fs.readFile(filePath);
+      return content.toString();
     },
-    getFilePath() {
-      return resourcePath;
-    },
-    getContext() {
-      return context;
-    },
-    isCurrentlyProcessing(filePath, symbols) {
-      const symbolQuery = symbols != null ? `?${symbols.join(',')}` : '';
-      const resource = `${filePath}${symbolQuery}`;
-      return IN_PROGRESS_SET.has(resource);
-    },
-    async resolve(path) {
-      const resolvedPath = tsResolver(path);
-      if (resolvedPath == null) {
+    async resolve(path, context) {
+      const module = tsResolver(path, context);
+      if (module?.resolvedFileName == null) {
         throw new Error(`Could not resolve ${path}`);
       }
-      return resolvedPath;
+      return module?.resolvedFileName;
     },
-    async importModule(filePath, requestedSymbols) {
-      const symbolQuery = requestedSymbols != null ? `?${requestedSymbols.join(',')}` : '';
-      const result = await webpackImport(`!!${thisLoaderPath}!${filePath}${symbolQuery}`, {}).catch((e) => {
-        callback(e);
-      });
-
-      return result.default;
-    },
-  };
-
-  const loader = new Loader(adapter);
-  const result = await loader.load(this.resourcePath, requestedSymbols).catch((e) => {
-    callback(e);
-    throw e;
+    cache: this.getOptions().cache ?? LOADER_CACHE,
   });
 
-  const code = `export default ${JSON.stringify(result)};`;
-  callback(null, code);
-  IN_PROGRESS_SET.delete(this.resource);
+  try {
+    const result = await loader.load(this.resourcePath);
+    const code = `export default ${JSON.stringify(result)};`;
+    callback(null, code);
+  } catch (e) {
+    console.log(e);
+    callback(e);
+  }
 };

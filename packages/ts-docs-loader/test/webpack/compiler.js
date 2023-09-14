@@ -5,6 +5,8 @@ import path from 'node:path';
 import {createFsFromVolume, Volume} from 'memfs';
 import webpack from 'webpack';
 
+import LoaderCache from '../../src/cache';
+
 const LOADER_PATH = path.resolve(__dirname, '../../index.js');
 const FIXTURES_DIR = path.resolve(__dirname, 'generated-fixtures');
 
@@ -28,7 +30,12 @@ export default function compiler(entrypoint, options = {}) {
           test: /.*$/,
           use: {
             loader: LOADER_PATH,
-            options,
+            options: {
+              // Each test needs its own LoaderCache, otherwise cached files
+              // leak between tests and return unexpected results.
+              cache: new LoaderCache(),
+              ...options,
+            },
           },
         },
       ],

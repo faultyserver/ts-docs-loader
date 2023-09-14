@@ -9,7 +9,7 @@ const ts = require('typescript');
  * Create a TypeScript module resolver based on the given context path.
  *
  * @param {string} sourcePath
- * @return {(moduleName: string) => (string | undefined)}
+ * @return {(moduleName: string, context: string) => ts.ResolvedModuleFull | undefined}
  */
 module.exports = function getTSResolver(sourcePath) {
   const context = path.dirname(sourcePath);
@@ -24,8 +24,8 @@ module.exports = function getTSResolver(sourcePath) {
     compilerOptions = ts.getDefaultCompilerOptions();
   }
 
-  return (moduleName) => {
-    const resolved = ts.resolveModuleName(moduleName, sourcePath, compilerOptions, ts.sys);
-    return resolved?.resolvedModule?.resolvedFileName;
+  return (moduleName, containingFile) => {
+    const resolved = ts.resolveModuleName(moduleName, containingFile, compilerOptions, ts.sys);
+    return resolved.resolvedModule;
   };
 };
