@@ -56,7 +56,9 @@ export default function compiler(entrypoint, options = {}) {
  * @returns {Record<string, string>}
  */
 export function createFixtures(files) {
-  fs.rmdirSync(FIXTURES_DIR, {recursive: true});
+  if (fs.existsSync(FIXTURES_DIR)) {
+    fs.rmdirSync(FIXTURES_DIR, {recursive: true});
+  }
   fs.mkdirSync(FIXTURES_DIR, {recursive: true});
 
   /** @type {Record<string, string>} */

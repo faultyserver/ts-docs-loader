@@ -3,7 +3,7 @@ const babel = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 const t = require('@babel/types');
 
-const packager = require('./packager');
+const Packager = require('./packager');
 const Transformer = require('./transformer');
 
 /**
@@ -55,7 +55,7 @@ module.exports = class Loader {
     const resolvedDependencies = await this.recurseDependencies(result.dependencies);
 
     const thisAsset = {id: filePath, exports: result.exportedNodes, symbols: result.symbols, links: {}};
-    return packager(thisAsset, resolvedDependencies);
+    return new Packager(thisAsset, resolvedDependencies).run();
   }
 
   /**

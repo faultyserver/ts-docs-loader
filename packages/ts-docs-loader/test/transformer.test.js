@@ -5,7 +5,7 @@ import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import {describe, test} from '@jest/globals';
 
-import Transformer from './transformer.js';
+import Transformer from '../src/transformer.js';
 import {assertNodeContent} from '../test/util.js';
 
 /**

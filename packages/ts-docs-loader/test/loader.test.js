@@ -175,3 +175,16 @@ describe('barrel imports', () => {
     assertNodeContent(data.exports['Bar'], {id: `bar:Bar`, type: 'link'});
   });
 });
+
+test('applies names to exported declarations', async () => {
+  const loader = createTestLoader({
+    index: `
+      export const foo = () => {};
+      export const bar = 10;
+    `,
+  });
+  const data = await loader('index');
+  assert(data.exports['foo'] instanceof Object);
+  assert(data.exports['foo'].type === 'function');
+  assert(data.exports['bar'].type === 'number');
+});
