@@ -39,6 +39,14 @@ module.exports = class LoaderCache {
   /**
    * @param {string} filePath
    * @param {string[]} symbols
+   */
+  deleteResource(filePath, symbols) {
+    this.cache.delete(this.makeResourceKey(filePath, symbols));
+  }
+
+  /**
+   * @param {string} filePath
+   * @param {string[]} symbols
    * @returns string
    */
   makeResourceKey(filePath, symbols) {
