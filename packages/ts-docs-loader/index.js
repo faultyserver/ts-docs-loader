@@ -47,10 +47,10 @@ module.exports = async function docsLoader() {
     },
     async resolve(path, context) {
       const module = tsResolver(path, context);
-      if (module?.resolvedFileName == null) {
-        throw new Error(`Could not resolve ${path}`);
+      if (module.resolvedModule?.resolvedFileName == null) {
+        throw new Error(`Could not resolve ${path}. Module resolution gave: ${module}`);
       }
-      return module?.resolvedFileName;
+      return module.resolvedModule?.resolvedFileName;
     },
     cache,
   });

@@ -9,7 +9,7 @@ const ts = require('typescript');
  * Create a TypeScript module resolver based on the given context path.
  *
  * @param {string} sourcePath
- * @return {(moduleName: string, context: string) => ts.ResolvedModuleFull | undefined}
+ * @return {(moduleName: string, context: string) => ts.ResolvedModuleWithFailedLookupLocations}
  */
 module.exports = function getTSResolver(sourcePath) {
   const context = path.dirname(sourcePath);
@@ -18,7 +18,7 @@ module.exports = function getTSResolver(sourcePath) {
   let compilerOptions;
   if (tsConfigPath != null) {
     const configContent = ts.readConfigFile(tsConfigPath, ts.sys.readFile).config;
-    const tsConfigObject = ts.parseJsonConfigFileContent(configContent, ts.sys, context);
+    const tsConfigObject = ts.parseJsonConfigFileContent(configContent, ts.sys, path.dirname(tsConfigPath));
     compilerOptions = tsConfigObject.options;
   } else {
     compilerOptions = ts.getDefaultCompilerOptions();
@@ -26,6 +26,6 @@ module.exports = function getTSResolver(sourcePath) {
 
   return (moduleName, containingFile) => {
     const resolved = ts.resolveModuleName(moduleName, containingFile, compilerOptions, ts.sys);
-    return resolved.resolvedModule;
+    return resolved;
   };
 };
