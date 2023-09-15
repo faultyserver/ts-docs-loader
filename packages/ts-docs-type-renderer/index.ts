@@ -346,7 +346,7 @@ export class TypeRenderer {
 
   renderObject(type: ObjectNode) {
     const properties = Object.values(type.properties).map((prop, i, arr) =>
-      n('property', [this.renderPropertyOrMethod(prop), i < arr.length - 1 ? p(', ') : null]),
+      n('property', [...this.renderPropertyOrMethod(prop), i < arr.length - 1 ? p(', ') : null]),
     );
     return n('object', [p('{'), ...properties, p('}')]);
   }
