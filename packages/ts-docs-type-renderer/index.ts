@@ -265,9 +265,9 @@ export class TypeRenderer {
     return n('function', [
       requiresParens ? p('(') : null,
       !anonymous ? id(name) : null,
-      this.renderTypeParameters(typeParameters),
+      ...this.renderTypeParameters(typeParameters),
       p('('),
-      this.renderTypeList(parameters, p(', ')),
+      ...this.renderTypeList(parameters, p(', ')),
       p(')'),
       p(anonymous ? ' => ' : ': '),
       this.render(returnType),
