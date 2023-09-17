@@ -1,4 +1,3 @@
-/* eslint-disable no-use-before-define */
 // @ts-check
 
 const mergeExtensions = require('./evaluator/extends');
@@ -10,6 +9,7 @@ const walk = require('./evaluator/walk');
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  * @typedef {import('@faulty/ts-docs-node-types').PropertyNode | import('@faulty/ts-docs-node-types').MethodNode} PropertyOrMethodNode
  * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
+ * @typedef {import('./types').NodeId} NodeId
  *
  * @typedef {Record<string, Node>} LoaderOutput
  * @typedef {Record<string, Node>} DocsResult
@@ -23,11 +23,9 @@ const walk = require('./evaluator/walk');
  * @param {Record<string, Asset>} dependencies
  * @returns {{exports: DocsResult, links: Record<string, object>}}
  */
-module.exports = class Packager {
+module.exports = class Linker {
   /** @type {NodeMap} */
   nodes = {};
-  /** @type {NodeMap} */
-  links = {};
   cache = new Map();
 
   /**
@@ -37,9 +35,12 @@ module.exports = class Packager {
   constructor(thisAsset, dependencies) {
     this.asset = thisAsset;
     this.dependencies = dependencies;
-    this.nodeResolver = new NodeResolver(this.nodes, this.links, this.dependencies);
+    this.nodeResolver = new NodeResolver(this.nodes, this.dependencies);
   }
 
+  /**
+   * @returns {{exports: Record<string, Node>, links: Record<string, Node>, linksByExport: Record<string, string[]>}}
+   */
   run() {
     // 2. Start processing at the entry point.
     /** @type {DocsResult | undefined} */
@@ -48,13 +49,14 @@ module.exports = class Packager {
       result = this.processAsset(this.asset);
     } catch (err) {
       console.log(err.stack);
-      return {exports: {}, links: {}};
+      return {exports: {}, links: {}, linksByExport: {}};
     }
 
     // 6. Recursively walk all link nodes in the tree of exports to append them
     // to the links field for this asset.
-    this.walkLinks(result);
-    return {exports: result, links: this.links};
+    const {linksByExport, links} = this.walkLinks(result);
+
+    return {exports: result, links, linksByExport};
   }
 
   /**
@@ -156,36 +158,55 @@ module.exports = class Packager {
   ///
 
   /**
-   * @param {DocsResult | Node} obj
+   * @param {DocsResult} nodes
+   * @returns {{linksByExport: Record<string, string[]>, links: Record<string, Node>}}
    */
-  walkLinks(obj) {
-    /**
-     * @param {string} id
-     */
-    const saveLink = (id) => {
+  walkLinks(nodes) {
+    /** @type {Record<string, Node>} */
+    const links = {};
+    /** @type {Record<string, string[]>} */
+    const linksByExport = {};
+
+    /** @type {(id: string) => Node | undefined} */
+    const getLinkValue = (id) => {
       // If the link is to a node that exists locally, use that
       if (this.nodes[id] != null) {
-        this.links[id] = this.nodes[id];
+        return this.nodes[id];
         // Otherwise check if the link is to a dependency
       } else {
         const linkValue = this.nodeResolver.resolveLink(id);
         if (linkValue != null) {
-          this.links[id] = linkValue;
+          return linkValue;
         }
       }
+
+      return undefined;
     };
 
-    walk(obj, (t, _k, recurse) => {
-      // don't follow the link if it's already in links, that's circular
-      if (t != null && t.type === 'link' && this.links[t.id] == null) {
-        saveLink(t.id);
-        this.walkLinks(this.nodes[t.id]);
-      } else if (t != null && (t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
-        saveLink(t.inheritedFrom);
-      }
+    /** @type {(exportName: string, id: string) => Node | undefined} */
+    function saveLink(exportName, id) {
+      const value = getLinkValue(id);
+      if (value == null) return;
+      links[id] = value;
+      linksByExport[exportName] = linksByExport[exportName] ?? [];
+      linksByExport[exportName].push(id);
+    }
 
-      return recurse(t);
-    });
+    for (const [name, node] of Object.entries(nodes)) {
+      walk(node, (t, _k, recurse) => {
+        // don't follow the link if it's already in links, that's circular
+        if (t != null && t.type === 'link' && links[t.id] == null) {
+          saveLink(name, t.id);
+          recurse(this.nodes[t.id]);
+        } else if (t != null && (t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
+          saveLink(name, t.inheritedFrom);
+        }
+
+        return recurse(t);
+      });
+    }
+
+    return {linksByExport, links};
   }
 
   /**

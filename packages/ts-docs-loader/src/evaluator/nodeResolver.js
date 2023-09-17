@@ -5,14 +5,11 @@
 module.exports = class NodeResolver {
   /**
    * @param {Record<string, Node>} nodes
-   * @param {Record<string, Node>} links
    * @param {Record<string, Asset>} dependencies
    */
-  constructor(nodes, links, dependencies) {
+  constructor(nodes, dependencies) {
     /** @type {Record<string, Node>} */
     this.nodes = nodes;
-    /** @type {Record<string, Node>} */
-    this.links = links;
     /** @type {Record<string, Asset>} */
     this.dependencies = dependencies;
   }

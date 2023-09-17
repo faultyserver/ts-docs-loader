@@ -67,6 +67,4 @@ test('ExampleComponents', async () => {
   const entry = path.resolve(__dirname, '../../../../examples/react-next/components/ExampleComponents.tsx');
   const context = path.resolve(__dirname, '../../../../examples/react-next');
   const stats = await compiler(entry, {context});
-  const data = getEntrypointOutput(stats);
-  console.log(data);
 });

@@ -1,19 +1,19 @@
 /** @typedef {import('@faulty/ts-docs-node-types').Node} Node */
-/** @typedef {import('../packager').Packager} Packager */
+/** @typedef {import('../linker').Linker} Linker */
 
 const OMITTABLE_TYPES = ['interface', 'object'];
 
 /**
  * Perform TypeScript's `Omit` utility, removing the properties named by `toOmit` from `base`.
  *
- * @param {Packager} packager
+ * @param {Linker} linker
  * @param {Node} base
  * @param {Node} toOmit
  * @returns {Node}
  */
-module.exports = function performOmit(packager, base, toOmit) {
-  base = packager.resolveValue(base);
-  toOmit = packager.resolveValue(toOmit);
+module.exports = function performOmit(linker, base, toOmit) {
+  base = linker.resolveValue(base);
+  toOmit = linker.resolveValue(toOmit);
 
   if (!OMITTABLE_TYPES.includes(base.type)) return base;
 
@@ -24,7 +24,7 @@ module.exports = function performOmit(packager, base, toOmit) {
     // If it's a union, resolve all of the elements of that union and then
     // add them to the omitted set.
   } else if (toOmit.type === 'union') {
-    const elements = packager.resolveUnionElements(toOmit);
+    const elements = linker.resolveUnionElements(toOmit);
     for (const element of elements) {
       if (element.type === 'string' && element.value != null) {
         keys.add(element.value);

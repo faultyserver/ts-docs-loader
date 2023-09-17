@@ -8,9 +8,9 @@
  * @typedef {import('./types').SourceExport} SourceExport
  * @typedef {import('./types').NodeId} NodeId
  *
- * @typedef CacheValue
+ * @typedef CachedSymbol
  * @property {Node} node
- * @property {NodeId[]} links
+ * @property {string[]} linkIds
  */
 
 const util = require('./util');
@@ -36,7 +36,7 @@ module.exports = class LoaderCache {
    * linked dependencies can also be found in the cache, then no
    * additional processing is necessary.
    *
-   * @type {Map<NodeId, CacheValue>}
+   * @type {Map<string, CachedSymbol>}
    */
   symbolCache = new Map();
 
@@ -68,7 +68,7 @@ module.exports = class LoaderCache {
    * @param {NodeId} nodeId
    */
   getCachedSymbol(nodeId) {
-    return this.symbolCache.get(nodeId);
+    return this.symbolCache.get(util.idToString(nodeId));
   }
 
   /**
@@ -84,7 +84,7 @@ module.exports = class LoaderCache {
    *
    * @param {string} filePath
    * @param {string[] | undefined} symbols
-   * @returns {{found: Record<string, CacheValue>, unfound: string[] | undefined}}
+   * @returns {{found: Record<string, CachedSymbol>, unfound: string[] | undefined}}
    */
   getCachedSymbolsFromFile(filePath, symbols) {
     const exportMap = this.getExportsFromFile(filePath);
@@ -95,7 +95,7 @@ module.exports = class LoaderCache {
 
     const requestedSymbols = symbols === undefined ? Object.keys(exportMap) : symbols;
 
-    /** @type {Record<string, CacheValue>} */
+    /** @type {Record<string, CachedSymbol>} */
     const found = {};
     const unfound = [];
 
@@ -124,18 +124,17 @@ module.exports = class LoaderCache {
 
   /**
    * @param {NodeId} id
-   * @param {CacheValue} value
+   * @param {CachedSymbol} value
    */
   setSymbol(id, value) {
-    this.symbolCache.set(id, value);
+    this.symbolCache.set(util.idToString(id), value);
   }
 
   /**
-   * @param {string} filePath
-   * @param {string} symbol
+   * @param {NodeId} id
    */
-  deleteSymbol(filePath, symbol) {
-    this.symbolCache.delete(util.makeId(filePath, symbol));
+  deleteSymbol(id) {
+    this.symbolCache.delete(util.idToString(id));
   }
 
   /**
@@ -147,9 +146,10 @@ module.exports = class LoaderCache {
   deleteSymbolsFromFile(filePath) {
     const deletedKeys = [];
     for (const id of this.symbolCache.keys()) {
-      if (id.file === filePath) {
+      const {file, symbol} = util.parseId(id);
+      if (file === filePath) {
         this.symbolCache.delete(id);
-        deletedKeys.push(id.symbol);
+        deletedKeys.push(symbol);
       }
     }
 

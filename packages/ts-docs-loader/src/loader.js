@@ -3,7 +3,7 @@ const babel = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 const t = require('@babel/types');
 
-const Packager = require('./packager');
+const Linker = require('./linker');
 const Transformer = require('./transformer');
 const util = require('./util');
 const {getTypeBinding} = require('./typeScopes');
@@ -58,7 +58,7 @@ module.exports = class Loader {
    * This is the main loop of the loader. It takes in the raw source code of a
    * module, parses it, transforms the content into a documentation node tree,
    * then recurses through all of the found dependencies to get their content,
-   * and finally packages all of the data from the module and its dependencies
+   * and finally links all of the data from the module and its dependencies
    * into a single result.
    *
    * If `symbols` is given, only those symbols will be processed and returned,
@@ -109,7 +109,7 @@ module.exports = class Loader {
     // // results as link values.
     // const linksByFile = util.groupBy(unfoundLinks, (id) => id.file);
     // for (const [file, ids] of Object.entries(linksByFile)) {
-    //   const dependencySymbols = await this._loadUncached(
+    //   const dependencySymbols = await this._loadExports(
     //     file,
     //     ids.map((id) => id.symbol),
     //   );
@@ -173,20 +173,20 @@ module.exports = class Loader {
     // exported symbols originate from, but those exports themselves may also
     // have dependencies to other files, through imports that are not themselves
     // re-exported. This recurstion loads all of those dependencies so that they
-    // can be merged and packaged for the final result.
+    // can be merged and linked for the final result.
     const resolvedDependencies = await this.recurseImportedDependencies(result.importDependencies, filePath);
 
-    // TODO: Rewrite the packager? Or at least extract the `walkLinks` part?
+    // TODO: Rewrite the linker? Or at least extract the `walkLinks` part?
     const thisAsset = {id: filePath, exports: result.exportedNodes, symbols: result.symbols, links: {}};
-    const docs = new Packager(thisAsset, resolvedDependencies).run();
+    const linked = new Linker(thisAsset, resolvedDependencies).run();
 
-    for (const node of Object.values(result.exportedNodes)) {
-      if (node.id == null) continue;
-      // TODO: Populate the cache with the created nodes once links can be attributed per-symbol.
-      // this.host.cache.setSymbol(util.parseId(node.id), {node, links: []});
-    }
+    // // TODO: Populate the cache with the created nodes once links can be attributed per-symbol.
+    // for (const [exportName, node] of Object.entries(linked.exports)) {
+    //   if (node.id == null) continue;
+    //   this.host.cache.setSymbol(util.parseId(node.id), {node, linkIds: linked.linksByExport[exportName] ?? []});
+    // }
 
-    return docs;
+    return linked;
   }
 
   /**
@@ -304,23 +304,24 @@ module.exports = class Loader {
     /** @type {LoadResult['links']} */
     const links = {};
 
+    /** @type {Set<string>} */
     const linksToSearch = new Set();
 
     const {found: cachedSymbols, unfound} = this.host.cache.getCachedSymbolsFromFile(filePath, symbols);
     // If symbols were found _and_ no symbols were _not_ found, then it must be
     // safe to use all of the cached symbols to create the result.
-    for (const [symbol, {node, links}] of Object.entries(cachedSymbols)) {
+    for (const [symbol, {node, linkIds}] of Object.entries(cachedSymbols)) {
       exports[symbol] = node;
-      for (const link of links) linksToSearch.add(link);
+      for (const link of linkIds) linksToSearch.add(link);
     }
 
-    // TODO: Recurse these links rather than just iterating. Links of links won't be found rn.
     const unfoundLinks = [];
     for (const link of linksToSearch) {
-      const cached = this.host.cache.getCachedSymbol(link);
+      const cached = this.host.cache.getCachedSymbol(util.parseId(link));
       if (cached != null) {
         links[link] = cached.node;
       } else {
+        unfoundLinks.push(util.parseId(link));
       }
     }
 
