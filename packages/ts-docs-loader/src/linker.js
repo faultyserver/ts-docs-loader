@@ -9,7 +9,6 @@ const walk = require('./evaluator/walk');
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  * @typedef {import('@faulty/ts-docs-node-types').PropertyNode | import('@faulty/ts-docs-node-types').MethodNode} PropertyOrMethodNode
  * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
- * @typedef {import('./types').NodeId} NodeId
  *
  * @typedef {Record<string, Node>} LoaderOutput
  * @typedef {Record<string, Node>} DocsResult
@@ -168,43 +167,23 @@ module.exports = class Linker {
     const linksByExport = {};
 
     /** @type {(id: string) => Node | undefined} */
-    const getLinkValue = (id) => {
-      // If the link is to a node that exists locally, use that
-      if (this.nodes[id] != null) {
-        return this.nodes[id];
-        // Otherwise check if the link is to a dependency
-      } else {
-        const linkValue = this.nodeResolver.resolveLink(id);
-        if (linkValue != null) {
-          return linkValue;
-        }
-      }
-
-      return undefined;
-    };
-
-    /** @type {(exportName: string, id: string) => Node | undefined} */
-    function saveLink(exportName, id) {
-      const value = getLinkValue(id);
+    const saveLink = (id) => {
+      const value = this.nodes[id] ?? this.nodeResolver.resolveLink(id);
       if (value == null) return;
       links[id] = value;
-      linksByExport[exportName] = linksByExport[exportName] ?? [];
-      linksByExport[exportName].push(id);
-    }
+    };
 
-    for (const [name, node] of Object.entries(nodes)) {
-      walk(node, (t, _k, recurse) => {
-        // don't follow the link if it's already in links, that's circular
-        if (t != null && t.type === 'link' && links[t.id] == null) {
-          saveLink(name, t.id);
-          recurse(this.nodes[t.id]);
-        } else if (t != null && (t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
-          saveLink(name, t.inheritedFrom);
-        }
+    walk(nodes, (t, _k, recurse) => {
+      // don't follow the link if it's already in links, that's circular
+      if (t != null && t.type === 'link' && links[t.id] == null) {
+        saveLink(t.id);
+        recurse(this.nodes[t.id]);
+      } else if (t != null && (t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
+        saveLink(t.inheritedFrom);
+      }
 
-        return recurse(t);
-      });
-    }
+      return recurse(t);
+    });
 
     return {linksByExport, links};
   }

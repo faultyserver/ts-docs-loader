@@ -19,7 +19,7 @@ module.exports = class NodeResolver {
    * within thisAsset or any of the provided dependencies.
    *
    * @param {string} id
-   * @returns {Node | null}
+   * @returns {Node | undefined}
    */
   resolveLink(id) {
     if (this.nodes[id] != null) {
@@ -32,7 +32,7 @@ module.exports = class NodeResolver {
       }
     }
 
-    return null;
+    return undefined;
   }
 
   /**
