@@ -1,7 +1,6 @@
-type Recurser<T> = (object: T, key: string) => any;
+import {Node} from '@faulty/ts-docs-node-types';
 
-type Walker<T, K> = (object: T, key: K, recurser: Recurser<T>) => WalkResult;
-
-// export declare function walk<T extends object, K extends keyof T>(object: T, walkerFn: Walker<T[K], K>): WalkResult;
-
-export declare function walk(object: any, walkerFn: (obj: any, key: string, recurse: Function) => object): object;
+export declare function walk<T extends Node | Record<string, Node>>(
+  base: T,
+  walkerFn: (node: Node, key: string | null, recurse: <N extends Node | Node[]>(n: N, key?: string) => N) => Node,
+): T;

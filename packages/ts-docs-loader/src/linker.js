@@ -12,7 +12,6 @@ const walk = require('./evaluator/walk');
  *
  * @typedef {Record<string, Node>} LoaderOutput
  * @typedef {Record<string, Node>} DocsResult
- * @typedef {string | null} Key
  *
  * @typedef {Record<string, Node>} NodeMap
  */
@@ -198,8 +197,6 @@ module.exports = class Linker {
     let application;
     const paramStack = [];
     const keyStack = [];
-    // Recurse through
-    // @ts-expect-error typing `walk` is hard.
     return walk(obj, (current, key, recurse) => {
       if (current == null) return current;
 
@@ -207,14 +204,12 @@ module.exports = class Linker {
       if (current.type === 'reference') {
         const res = this.dependencies[current.specifier] ?? this.asset;
         const result = res?.exports[current.imported] ?? null;
-        if (result != null) {
-          current = result;
-        } else {
-          return {
-            type: 'identifier',
-            name: current.local,
-          };
-        }
+        if (result != null) return recurse(result);
+
+        return {
+          type: 'identifier',
+          name: current.local,
+        };
       }
 
       if (current.type === 'application') {
@@ -225,7 +220,6 @@ module.exports = class Linker {
       // be applied to any descendants of the type.
       let hasParams = false;
       if (
-        current &&
         (current.type === 'alias' || current.type === 'interface') &&
         current.typeParameters &&
         application &&
@@ -240,7 +234,6 @@ module.exports = class Linker {
         application = null;
         hasParams = true;
       } else if (
-        current &&
         (current.type === 'alias' || current.type === 'interface' || current.type === 'component') &&
         current.typeParameters &&
         keyStack.length === 0
@@ -343,8 +336,8 @@ module.exports = class Linker {
    * base types into itself for presentation.
    *
    * @param {Node | null} t - The type being considered
-   * @param {Key} k - The key of `t` in the parent object
-   * @param {Key[]} keyStack - the ancestry of keys to the root object being walked
+   * @param {string | null} k - The key of `t` in the parent object
+   * @param {Array<string | null>} keyStack - the ancestry of keys to the root object being walked
    * @returns {boolean}
    */
   shouldMerge(t, k, keyStack) {
