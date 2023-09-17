@@ -199,39 +199,40 @@ module.exports = class Packager {
     const paramStack = [];
     const keyStack = [];
     // Recurse through
-    return walk(obj, (t, k, recurse) => {
+    // @ts-expect-error typing `walk` is hard.
+    return walk(obj, (current, key, recurse) => {
+      if (current == null) return current;
+
       // Resolve references to imported names to the actual node they reference.
-      if (t && t.type === 'reference') {
-        // Save as a local to keep type refinement.
-        const node = t;
-        const res = this.dependencies[node.specifier] ?? this.asset;
-        const result = res?.exports[t.imported] ?? null;
+      if (current.type === 'reference') {
+        const res = this.dependencies[current.specifier] ?? this.asset;
+        const result = res?.exports[current.imported] ?? null;
         if (result != null) {
-          t = result;
+          current = result;
         } else {
           return {
             type: 'identifier',
-            name: t.local,
+            name: current.local,
           };
         }
       }
 
-      if (t && t.type === 'application') {
-        application = recurse(t.typeParameters, 'typeParameters');
+      if (current.type === 'application') {
+        application = recurse(current.typeParameters, 'typeParameters');
       }
 
       // Gather type parameters from the interface/alias/component so they can
       // be applied to any descendants of the type.
       let hasParams = false;
       if (
-        t &&
-        (t.type === 'alias' || t.type === 'interface') &&
-        t.typeParameters &&
+        current &&
+        (current.type === 'alias' || current.type === 'interface') &&
+        current.typeParameters &&
         application &&
-        this.shouldMerge(t, k, keyStack)
+        this.shouldMerge(current, key, keyStack)
       ) {
         const params = Object.assign({}, paramStack[paramStack.length - 1]);
-        t.typeParameters.forEach((p, i) => {
+        current.typeParameters.forEach((p, i) => {
           params[p.name] = application[i] || p.default;
         });
         paramStack.push(params);
@@ -239,14 +240,14 @@ module.exports = class Packager {
         application = null;
         hasParams = true;
       } else if (
-        t &&
-        (t.type === 'alias' || t.type === 'interface' || t.type === 'component') &&
-        t.typeParameters &&
+        current &&
+        (current.type === 'alias' || current.type === 'interface' || current.type === 'component') &&
+        current.typeParameters &&
         keyStack.length === 0
       ) {
         // If we are at a root export, replace type parameters with constraints if possible.
         // Seeing `DateValue` (as in `T extends DateValue`) is nicer than just `T`.
-        const typeParameters = recurse(t.typeParameters, 'typeParameters');
+        const typeParameters = recurse(current.typeParameters, 'typeParameters');
         const params = Object.assign({}, paramStack[paramStack.length - 1]);
         typeParameters.forEach((p) => {
           if (!params[p.name] && p.constraint) {
@@ -257,8 +258,8 @@ module.exports = class Packager {
         hasParams = true;
       }
 
-      keyStack.push(k);
-      t = recurse(t);
+      keyStack.push(key);
+      current = recurse(current);
       keyStack.pop();
 
       if (hasParams) {
@@ -266,66 +267,66 @@ module.exports = class Packager {
       }
 
       const params = paramStack[paramStack.length - 1];
-      if (t && t.type === 'application') {
+      if (current.type === 'application') {
         application = null;
-        if (k === 'props') {
-          return t.base;
+        if (key === 'props') {
+          return current.base;
         }
       }
 
       // Resolve `Omit<Type, Keys>` structures.
-      if (t && t.type === 'identifier' && t.name === 'Omit' && application) {
+      if (current.type === 'identifier' && current.name === 'Omit' && application) {
         return performOmit(this.nodeResolver, application[0], application[1]);
       }
 
       // If this is just an identifier and references a type parameter that is
       // currently known, return that type parameter instead.
-      if (t && t.type === 'identifier' && params && params[t.name]) {
-        return params[t.name];
+      if (current.type === 'identifier' && params && params[current.name]) {
+        return params[current.name];
       }
 
       // If this is an interface, try to merge all the properties from it's
       // base classes into a flat set.
-      if (t && t.type === 'interface') {
-        const merged = mergeExtensions(t);
-        if (this.nodes[t.id] == null) {
-          this.nodes[t.id] = merged;
+      if (current.type === 'interface') {
+        const merged = mergeExtensions(current);
+        if (this.nodes[current.id] == null) {
+          this.nodes[current.id] = merged;
         }
 
-        if (this.shouldMerge(t, k, keyStack)) {
+        if (this.shouldMerge(current, key, keyStack)) {
           return merged;
         }
 
         // Otherwise return a type link.
         return {
           type: 'link',
-          id: t.id,
+          id: current.id,
         };
       }
 
       // For aliases, if it's being used as a `props` parameter type, then
       // resolve it to the actual value so that component props have that
       // information available directly.
-      if (t && t.type === 'alias') {
-        if (k === 'props') {
-          return t.value;
+      if (current.type === 'alias') {
+        if (key === 'props') {
+          return current.value;
         }
 
-        if (this.nodes[t.id] == null) {
-          this.nodes[t.id] = t;
+        if (this.nodes[current.id] == null) {
+          this.nodes[current.id] = current;
         }
 
         return {
           type: 'link',
-          id: t.id,
+          id: current.id,
         };
       }
 
-      if (t && t.type === 'keyof') {
-        if (t.keyof.type === 'interface') {
+      if (current.type === 'keyof') {
+        if (current.keyof.type === 'interface') {
           return {
             type: 'union',
-            elements: Object.keys(t.keyof.properties).map((key) => ({
+            elements: Object.keys(current.keyof.properties).map((key) => ({
               type: 'string',
               value: key,
             })),
@@ -333,7 +334,7 @@ module.exports = class Packager {
         }
       }
 
-      return t;
+      return current;
     });
   }
 

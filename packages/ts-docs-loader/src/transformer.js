@@ -4,16 +4,19 @@ const t = require('@babel/types');
 const {NodePath} = require('@babel/traverse');
 const doctrine = require('doctrine');
 
+const util = require('./util');
+const {getTypeBinding} = require('./typeScopes');
+
 // @ts-expect-error intentionally unused, just importing to simplify types later on
 new NodePath();
 
 /**
- * @typedef {import('webpack').LoaderContext<any>} LoaderContext
- *
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
- * @typedef {Partial<Node>} PartialNode
  * @typedef {import('@faulty/ts-docs-node-types').NodeDocs} NodeDocs
- * @typedef {{path: string, symbols: Map<string, string>}} Dependency
+ * @typedef {import('./types').Import} Import
+ *
+ * @typedef {Partial<Node>} PartialNode
+ * @typedef {{source: string, symbols: Import[]}} Dependency
  */
 
 module.exports = class Transformer {
@@ -33,49 +36,23 @@ module.exports = class Transformer {
      * @type {Dependency[]}
      */
     this.dependencies = [];
-
-    /**
-     * Types that aren't exported still need to be tracked, so that references
-     * to those types are able to be resolved.
-     * @type {Map<string, NodePath>}
-     */
-    this.globalTypes = new Map();
   }
 
   /**
-   * Add the given filePath to the list of dependencies for this file.
+   * Add the given source to the list of dependencies for this file.
    *
-   * @param {string} filePath
-   * @param {Map<string, string>} symbols - map of symbol names this asset uses from the dependency.
+   * @param {string} source
+   * @param {import('./types').Import} importSymbol - map of symbol names this asset uses from the dependency.
    */
-  addDependency(filePath, symbols) {
-    const existing = this.dependencies.find((dep) => dep.path === filePath);
+  addDependency(source, importSymbol) {
+    const existing = this.dependencies.find((dep) => dep.source === source);
     // If the dependency already exists, just amend the symbols for it.
     if (existing != null) {
-      for (const [local, source] of symbols.entries()) {
-        existing.symbols.set(local, source);
-      }
+      existing.symbols.push(importSymbol);
       // Otherwise, it's a new dependency and must be added
     } else {
-      this.dependencies.push({path: filePath, symbols});
+      this.dependencies.push({source, symbols: [importSymbol]});
     }
-  }
-
-  /**
-   * Register a type defined within the file. Babel doesn't consider these
-   * bindings, so they can't be referenced when looking up identifiers.
-   * Example:
-   *  interface Bar {}
-   *  interface Foo extends Bar {}
-   * The transformer wouldn't know to resolve Bar to the interface declaration,
-   * because it's not considered "bound". This global type registry acts as a
-   * secondary lookup source to find and resolve these types.
-   *
-   * @param {string} name
-   * @param {NodePath} path
-   */
-  addGlobalType(name, path) {
-    this.globalTypes.set(name, path);
   }
 
   /**
@@ -106,6 +83,8 @@ module.exports = class Transformer {
     if (/** @type {NodePath} */ (calleePath.get('object')).referencesImport(module, 'default')) {
       return t.isIdentifier(callee.property, {name});
     }
+
+    return false;
   }
 
   /**
@@ -115,10 +94,7 @@ module.exports = class Transformer {
    * @returns {boolean}
    */
   isReactForwardRef(path) {
-    return (
-      this.isReactCall(path, 'forwardRef') ||
-      (path.isCallExpression() && path.get('callee').isIdentifier({name: 'createHideableComponent'}))
-    );
+    return this.isReactCall(path, 'forwardRef');
   }
 
   /**
@@ -447,7 +423,7 @@ module.exports = class Transformer {
 
     // @ts-ignore
     this.processExport(path.get('init'), node);
-    node.id = `${this.filePath}:${path.node.id['name']}`;
+    node.id = util.makeIdString(this.filePath, path.node.id['name']);
     node.name = path.node.id['name'];
 
     // @ts-ignore
@@ -498,7 +474,7 @@ module.exports = class Transformer {
       this.addDocs(
         {
           type: 'interface',
-          id: `${this.filePath}:${name}`,
+          id: util.makeIdString(this.filePath, name),
           name: name,
           extends: exts,
           // @ts-ignore enforcing this is property | method with the type check in the loop above
@@ -671,7 +647,7 @@ module.exports = class Transformer {
       const docs = this.getJSDocs(path);
       return Object.assign(node, {
         type: 'component',
-        id: 'id' in path.node && path.node.id != null ? `${this.filePath}:${path.node.id.name}` : null,
+        id: 'id' in path.node && path.node.id != null ? util.makeIdString(this.filePath, path.node.id.name) : null,
         name: 'id' in path.node && path.node.id ? path.node.id.name : null,
         props:
           props?.['typeAnnotation'] != null
@@ -695,7 +671,7 @@ module.exports = class Transformer {
         this.addDocs(
           {
             type: 'function',
-            id: 'id' in path.node && path.node.id ? `${this.filePath}:${path.node.id.name}` : undefined,
+            id: 'id' in path.node && path.node.id ? util.makeIdString(this.filePath, path.node.id.name) : undefined,
             name: 'id' in path.node && path.node.id ? path.node.id.name : undefined,
 
             // @ts-ignore
@@ -791,24 +767,39 @@ module.exports = class Transformer {
   processImportSpecifier(path, node) {
     if (!('source' in path.parent) || path.parent.source == null) return node;
 
-    const specifier = path.parent.source.value;
-    const local = path.node.local.name;
+    const source = path.parent.source.value;
+    const localName = path.node.local.name;
     let imported;
     if (path.isImportSpecifier()) {
-      imported = path.node.imported['name'];
+      const sourceName = path.node.imported['name'];
+      imported = sourceName;
+      this.addDependency(source, {
+        type: 'symbol',
+        localName,
+        sourceName,
+        sourceFile: source,
+      });
     } else if (path.isImportDefaultSpecifier()) {
       imported = 'default';
+      this.addDependency(source, {
+        type: 'default',
+        localName,
+        sourceFile: source,
+      });
     } else if (path.isImportNamespaceSpecifier()) {
       imported = '*';
+      this.addDependency(source, {
+        type: 'namespace',
+        localName,
+        sourceFile: source,
+      });
     }
-
-    this.addDependency(specifier, new Map([[local, imported]]));
 
     return Object.assign(node, {
       type: 'reference',
-      local,
+      local: localName,
       imported,
-      specifier,
+      specifier: source,
     });
   }
 
@@ -823,7 +814,7 @@ module.exports = class Transformer {
     const docs = this.getJSDocs(path);
     return Object.assign(node, {
       type: 'alias',
-      id: `${this.filePath}:${path.node.id.name}`,
+      id: util.makeIdString(this.filePath, path.node.id.name),
       name: path.node.id.name,
       value: this.processExport(path.get('typeAnnotation')),
       typeParameters: path.node.typeParameters
@@ -876,7 +867,7 @@ module.exports = class Transformer {
       this.addDocs(
         {
           type: 'interface',
-          id: `${this.filePath}:${path.node.id.name}`,
+          id: util.makeIdString(this.filePath, path.node.id.name),
           name: path.node.id.name,
           extends: exts,
           // @ts-ignore enforcing this is property | method with the type check in the loop above.
@@ -1175,12 +1166,11 @@ module.exports = class Transformer {
       return this.processExport(binding.path, node);
     }
     // Then lookup locally-defined types that don't have JS values.
-    // Ignoring for now because this somehow doesn't end up making a `link`
-    // and means the resolver shows `unknown` instead of a name.
-    const globalType = this.globalTypes.get(path.node.name);
-    if (globalType != null) {
-      // If it was, just process the export, but don't do anything with it.
-      return this.processExport(globalType, node);
+    const typeBinding = getTypeBinding(path, path.node.name);
+    if (typeBinding != null && typeBinding.path.parentPath != null) {
+      // `typeBinding` yields the identifier of the declaration that
+      // created the binding, so go to the parent to get the declaration itself.
+      return this.processExport(typeBinding.path.parentPath, node);
     }
 
     // Otherwise just say it's an unknown identifier.

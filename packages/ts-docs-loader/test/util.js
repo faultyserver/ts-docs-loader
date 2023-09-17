@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 /**
- * @typedef {import('@babel/types').Node} Node
+ * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  */
 
 /**
@@ -13,7 +13,7 @@ export function assertNodeContent(node, expected) {
     if (expected[key] instanceof Object) {
       assert.deepEqual(node[key], expected[key], `key '${key}' did not match`);
     } else {
-      assert.equal(node[key], expected[key]);
+      assert.equal(node[key], expected[key], `key '${key}' did not match`);
     }
   }
 }

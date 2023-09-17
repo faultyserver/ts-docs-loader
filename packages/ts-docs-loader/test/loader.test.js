@@ -188,3 +188,21 @@ test('applies names to exported declarations', async () => {
   assert(data.exports['foo'].type === 'function');
   assert(data.exports['bar'].type === 'number');
 });
+
+test('links props for components', async () => {
+  const loader = createTestLoader({
+    index: `
+      interface FooProps {
+        foo: string;
+      }
+
+      export function Foo(props: FooProps) {
+        return <div></div>;
+      }
+    `,
+  });
+  const data = await loader('index');
+
+  assertNodeContent(data.exports['Foo'], {type: 'component', name: 'Foo'});
+  assertNodeContent(data.exports['Foo'].props, {type: 'interface', name: 'FooProps'});
+});

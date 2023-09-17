@@ -25,8 +25,11 @@ module.exports = async function docsLoader() {
   const tsResolver = getTSResolver(this.resourcePath);
 
   const cache = this.getOptions().cache ?? LOADER_CACHE;
-  // Assume that if we're loading again, webpack has determined we need to bust the cache.
-  cache.deleteResource(this.resourcePath, []);
+  // This loader is considered cacheable by webpack, meaning it should only
+  // be called when webpack determines that the cache needs to be busted. With
+  // that assumption, the loader cache should also be invalidated so that the
+  // file can be fully processed again.
+  cache.invalidateFile(this.resourcePath);
 
   // Listen for watch mode invalidations and remove entries from the cache if
   // they change. But ensure that only one tap is hooked up to the global
@@ -34,7 +37,7 @@ module.exports = async function docsLoader() {
   if (cache !== LOADER_CACHE || !isGlobalCacheTapped) {
     this._compiler?.hooks.invalid.tap(LOADER_NAME, (filePath) => {
       if (filePath == null) return;
-      cache.deleteResource(filePath, []);
+      cache.invalidateFile(filePath);
     });
     // If this was the global cache, mark it as tapped
     if (cache === LOADER_CACHE) isGlobalCacheTapped = true;

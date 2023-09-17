@@ -15,6 +15,7 @@ export function createTestLoader(files) {
     /** @type {import('../src/loader').Host} */
     const adapter = {
       async getSource(filePath) {
+        if (!(filePath in files)) return Promise.reject(`File '${filePath}' does not exist`);
         return files[filePath];
       },
       async resolve(filePath) {

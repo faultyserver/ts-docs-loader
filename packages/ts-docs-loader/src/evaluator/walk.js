@@ -1,26 +1,13 @@
 /**
  * Recurse through every key of `obj`.
  *
- * @typedef {import('@faulty/ts-docs-node-types').Node} Node
- *
- * @callback Recurser
- * @param {Node | Node[]} obj
- * @param {Key=} key
- *
- * @callback Walker
- * @param {Node} obj
- * @param {Key} key
- * @param {Recurser} recurse
- *
- * @type {(obj: any, walkerFn: Walker) => any}
+ * @type {import('./types').walk}
  */
-module.exports = function walk(obj, walkerFn) {
+module.exports = function walk(object, walkerFn) {
   // circular is to make sure we don't traverse over an object we visited earlier in the recursion
   const circular = new Set();
 
-  /** @type {(obj: Node, k?: Key) => DocsResult}  */
   const visit = (obj, k = null) => {
-    /** @type {Recurser} */
     const recurse = (obj, key = k) => {
       if (!Array.isArray(obj) && circular.has(obj)) {
         return {
@@ -50,8 +37,8 @@ module.exports = function walk(obj, walkerFn) {
   };
 
   const res = {};
-  for (const k in obj) {
-    res[k] = visit(obj[k]);
+  for (const k in object) {
+    res[k] = visit(object[k]);
   }
 
   return res;

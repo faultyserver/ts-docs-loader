@@ -4,31 +4,11 @@ import assert from 'node:assert/strict';
 import NodeResolver from '../src/evaluator/nodeResolver';
 import performOmit from '../src/evaluator/omit';
 
+import {builder as b} from './nodeBuilder';
+
 function makeResolver(nodes = {}) {
   return new NodeResolver(nodes, {}, {});
 }
-
-const b = {
-  str: (value) => (value == null ? {type: 'string'} : {type: 'string', value}),
-  num: (value) => (value == null ? {type: 'number'} : {type: 'number', value}),
-  bool: (value) => (value == null ? {type: 'boolean'} : {type: 'boolean', value}),
-  union: (elements) => ({type: 'union', elements}),
-  alias: (name, value, typeParameters = []) => ({
-    type: 'alias',
-    id: name,
-    name,
-    value,
-    typeParameters,
-  }),
-  interface: (name, properties, extensions = [], typeParameters = []) => ({
-    type: 'interface',
-    id: name,
-    name,
-    extends: extensions,
-    properties,
-    typeParameters,
-  }),
-};
 
 describe('Omit', () => {
   const Foo = b.interface('Foo', {

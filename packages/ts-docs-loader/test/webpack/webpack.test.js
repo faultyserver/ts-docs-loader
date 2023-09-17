@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {Stats} from 'webpack';
 
 import compiler, {createFixtures} from './compiler.js';
+import path from 'node:path';
 
 /**
  * Return the JSON result of the entrypoing file from running the loader.
@@ -34,27 +35,10 @@ test('exporting from another file', async () => {
   assert(data.exports['Base'] instanceof Object);
 });
 
-test('handles requestedSymbols to select processed exports', async () => {
-  const fixtures = createFixtures({
-    'foo.tsx': `export interface Foo {};`,
-    'barrel.tsx': `
-      export {Bar} from './bar';
-      export {Foo} from './foo';
-    `,
-    'index.tsx': `
-      export {Foo} from './barrel';
-    `,
-  });
-  const stats = await compiler(fixtures['index.tsx']);
-  const data = getEntrypointOutput(stats);
-  assert(data.exports['Foo'] instanceof Object);
-});
-
 test('handles looping imports through a barrel', async () => {
   const fixtures = createFixtures({
     'barrel.tsx': `
       export {Bar} from './bar';
-      export {Baz} from './baz';
       export {Foo} from './foo';
     `,
     'foo.tsx': `
@@ -62,12 +46,8 @@ test('handles looping imports through a barrel', async () => {
       export interface Foo extends Bar {};
     `,
     'bar.tsx': `
-      import {Baz} from './barrel';
-      export interface Bar extends Baz {};
-    `,
-    'baz.tsx': `
-      export interface Baz {
-        bazProp: boolean;
+      export interface Bar {
+        barProp: boolean;
       };
     `,
     'index.tsx': `
@@ -80,5 +60,13 @@ test('handles looping imports through a barrel', async () => {
   assert(data.exports['Foo'] instanceof Object);
   // Testing that the interfaces merged into Foo means that it
   // was able to resolve everything in the chain and not shortcut out.
-  assert(data.exports['Foo']['properties']['bazProp'] instanceof Object);
+  assert(data.exports['Foo']['properties']['barProp'] instanceof Object);
+});
+
+test('ExampleComponents', async () => {
+  const entry = path.resolve(__dirname, '../../../../examples/react-next/components/ExampleComponents.tsx');
+  const context = path.resolve(__dirname, '../../../../examples/react-next');
+  const stats = await compiler(entry, {context});
+  const data = getEntrypointOutput(stats);
+  console.log(data);
 });

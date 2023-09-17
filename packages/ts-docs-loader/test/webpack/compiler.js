@@ -15,7 +15,7 @@ const FIXTURES_DIR = path.resolve(__dirname, 'generated-fixtures');
  */
 export default function compiler(entrypoint, options = {}) {
   const compiler = webpack({
-    context: __dirname,
+    context: options.context ?? __dirname,
     entry: entrypoint,
     output: {
       path: path.resolve(__dirname),
