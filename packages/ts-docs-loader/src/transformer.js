@@ -1,19 +1,23 @@
 // @ts-check
 
 const t = require('@babel/types');
-const {NodePath} = require('@babel/traverse');
 const doctrine = require('doctrine');
 
 const util = require('./util');
-const {getTypeBinding} = require('./typeScopes');
-
-// @ts-expect-error intentionally unused, just importing to simplify types later on
-new NodePath();
+const {getTypeBinding} = require('./traverseExportsAndTypes');
 
 /**
+ * @template [T=t.Node]
+ * @typedef {import('@babel/traverse').NodePath<T>} NodePath<T>
+ */
+
+/**
+ * @typedef {import('@babel/traverse').Scope} Scope
+ *
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  * @typedef {import('@faulty/ts-docs-node-types').NodeDocs} NodeDocs
  * @typedef {import('./types').Import} Import
+ * @typedef {import('./types').TypeScope} TypeScope
  *
  * @typedef {Partial<Node>} PartialNode
  * @typedef {{source: string, symbols: Import[]}} Dependency
@@ -22,10 +26,13 @@ new NodePath();
 module.exports = class Transformer {
   /**
    * @param {string} filePath - Absolute file path for the source, used for constructing IDs
+   * @param {Map<Scope, TypeScope>} typeScopes - Absolute file path for the source, used for constructing IDs
    */
-  constructor(filePath) {
+  constructor(filePath, typeScopes) {
     /** @type {string} */
     this.filePath = filePath;
+    /** @type {Map<Scope, TypeScope>} */
+    this.typeScopes = typeScopes;
     /**
      * A cache to avoid re-processing paths from the tree
      */
@@ -706,7 +713,6 @@ module.exports = class Transformer {
    * @returns {PartialNode}
    */
   processTSTypeReference(path, node) {
-    // Array<string>, Ref<T>
     if (path.node.typeParameters) {
       const base = this.processExport(path.get('typeName'));
 
@@ -1165,11 +1171,9 @@ module.exports = class Transformer {
       return this.processExport(binding.path, node);
     }
     // Then lookup locally-defined types that don't have JS values.
-    const typeBinding = getTypeBinding(path, path.node.name);
-    if (typeBinding != null && typeBinding.path.parentPath != null) {
-      // `typeBinding` yields the identifier of the declaration that
-      // created the binding, so go to the parent to get the declaration itself.
-      return this.processExport(typeBinding.path.parentPath, node);
+    const typeBinding = getTypeBinding(path.scope, path.node.name, this.typeScopes);
+    if (typeBinding != null) {
+      return this.processExport(typeBinding.path, node);
     }
 
     // Otherwise just say it's an unknown identifier.

@@ -1,19 +1,18 @@
 // @ts-check
 const babel = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const t = require('@babel/types');
 
 const Linker = require('./linker');
 const Transformer = require('./transformer');
+const {traverseExportsAndTypes, traverseTypeScopes} = require('./traverseExportsAndTypes');
 const util = require('./util');
-const {getTypeBinding} = require('./typeScopes');
 
 /**
- * @typedef {import('@babel/traverse').NodePath} NodePath
- *
  * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
+ * @typedef {import('@babel/traverse').Scope} Scope
  *
+ * @typedef {import('./types').BabelAST} BabelAST
+ * @typedef {import('./types').TypeScope} TypeScope
  * @typedef {import('./types').SymbolExport} SymbolExport
  * @typedef {import('./types').NamespaceExport} NamespaceExport
  * @typedef {import('./types').ExternalExport} ExternalExport
@@ -23,6 +22,7 @@ const {getTypeBinding} = require('./typeScopes');
  * @typedef {import('./types').SourceExport} SourceExport
  * @typedef {import('./types').SymbolImport} SymbolImport
  * @typedef {import('./types').Import} Import
+ * @typedef {import('./traverseExportsAndTypes').GatherResult} GatherResult
  *
  * @typedef {import('./cache').NodeId} NodeId
  * @typedef {import('./transformer').Dependency} Dependency
@@ -69,7 +69,6 @@ module.exports = class Loader {
    * @type {(filePath: string, requestedSymbols?: string[]) => Promise<LoadResult>}
    */
   async load(filePath, requestedSymbols) {
-    const start = performance.now();
     const thisResourceId = JSON.stringify({filePath});
     this.inProgress.add(thisResourceId);
 
@@ -200,7 +199,8 @@ module.exports = class Loader {
    * @returns {Promise<TransformResult>}
    */
   async processExports(filePath, requestedExports) {
-    const transformer = new Transformer(filePath);
+    const typeScopes = await this.gatherTypeScopes(filePath);
+    const transformer = new Transformer(filePath, typeScopes);
     /** @type {Record<string, Node>} */
     const exportedNodes = {};
 
@@ -333,7 +333,7 @@ module.exports = class Loader {
    * is dependent on it being a babel-compatible AST that handles TypeScript.
    *
    * @param {string} filePath
-   * @returns {Promise<import('@babel/parser').ParseResult<import('@babel/types').File>>}
+   * @returns {Promise<BabelAST>}
    */
   async parse(filePath) {
     const cached = this.host.cache.getAST(filePath);
@@ -363,6 +363,30 @@ module.exports = class Loader {
   }
 
   /**
+   *
+   * @param {string} filePath
+   * @returns {Promise<Map<Scope, TypeScope>>} filePath
+   */
+  async gatherTypeScopes(filePath) {
+    const cached = this.host.cache.getTypeScopes(filePath);
+    if (cached != null) return cached;
+
+    let ast;
+    try {
+      ast = await this.parse(filePath);
+    } catch (_) {
+      // If the file couldn't be parsed, we can still recover gracefully and
+      // just treat it as an empty file.
+      // TODO: Should probably at least report that it couldn't be found/parsed.
+      return new Map();
+    }
+
+    const scopes = traverseTypeScopes(ast);
+    this.host.cache.setTypeScopes(filePath, scopes);
+    return scopes;
+  }
+
+  /**
    * Traverse the AST and collect the names of all of the symbols that are
    * exported. `sourceExports` is the set of symbols originating from the
    * file as exports (including namespace exports like `* as Foo`),
@@ -374,7 +398,7 @@ module.exports = class Loader {
    * source to determine all of the symbols being proxied.
    *
    * @param {string} filePath
-   * @returns {Promise<{sourceExports: Map<string, SourceExport>, externalExports: Map<string, ExternalExport[]>, wildcardExports: Array<WildcardExport>}>}
+   * @returns {Promise<GatherResult>}
    */
   async gatherExports(filePath) {
     let ast;
@@ -384,113 +408,13 @@ module.exports = class Loader {
       // If the file couldn't be parsed, we can still recover gracefully and
       // just treat it as an empty file.
       // TODO: Should probably at least report that it couldn't be found/parsed.
-      return {sourceExports: new Map(), externalExports: new Map(), wildcardExports: []};
+      return {sourceExports: new Map(), externalExports: new Map(), wildcardExports: [], typeScopes: new Map()};
     }
 
-    /** @type {Map<string, SourceExport>} */
-    const sourceExports = new Map();
+    const result = traverseExportsAndTypes(filePath, ast);
 
-    /** @type {Array<WildcardExport>} */
-    const wildcardExports = [];
-
-    /** @type {Map<string, ExternalExport[]>} */
-    const externalExports = new Map();
-
-    traverse(ast, {
-      ExportNamedDeclaration(path) {
-        // export {Foo} from 'foo';
-        if (path.node.source) {
-          const sourceFile = path.node.source.value;
-          for (const [index, specifier] of path.node.specifiers.entries()) {
-            const exportName = specifier.exported['name'];
-            /** @type {NodePath} */
-            // @ts-expect-error
-            const specifierPath = path.get(`specifiers.${index}`);
-
-            if (specifier.type === 'ExportNamespaceSpecifier') {
-              // export * as Foo from 'foo';
-              sourceExports.set(exportName, {
-                type: 'namespace',
-                name: exportName, // Foo
-                sourceFile: sourceFile, // 'foo'
-                path: specifierPath,
-                id: util.makeId(filePath, exportName),
-              });
-            } else {
-              // export {Foo as Bar} from 'foo';
-              const list = externalExports.get(sourceFile) ?? [];
-              list.push({
-                type: 'external',
-                name: exportName, // Bar
-                sourceName: specifier['local'].name, // Foo
-                sourceFile: sourceFile, // 'foo'
-                path: specifierPath,
-              });
-              externalExports.set(sourceFile, list);
-            }
-          }
-        } else if (path.node.declaration) {
-          if ('id' in path.node.declaration && t.isIdentifier(path.node.declaration.id)) {
-            const name = path.node.declaration.id.name;
-
-            // export class Foo {};
-            sourceExports.set(name, {
-              type: 'symbol',
-              name, // Foo
-              sourceName: name, // Foo
-              // @ts-expect-error .get() is wild
-              path: path.get('declaration'),
-              id: util.makeId(filePath, name),
-            });
-          } else {
-            // export Foo = class Bar {}, foo = function bar() {};
-            const identifiers = t.getBindingIdentifiers(path.node.declaration);
-            for (const [index, id] of Object.keys(identifiers).entries()) {
-              const name = identifiers[id].name;
-              sourceExports.set(name, {
-                type: 'symbol',
-                name, // Foo
-                sourceName: name, // Foo
-                path: path.get('declaration.declarations')[index],
-                id: util.makeId(filePath, name),
-              });
-            }
-          }
-        } else if (path.node.specifiers.length > 0) {
-          // export {Foo as Bar};
-          for (const specifier of path.node.specifiers) {
-            // @ts-expect-error specifier.local is guaranteed to exist here
-            const localName = specifier.local.name;
-            // @ts-expect-error exported.name is guaranteed to exist here
-            const exportName = specifier.exported.name;
-
-            const bindingPath = path.scope.getBinding(localName)?.path ?? getTypeBinding(path, localName)?.path;
-            // If no binding was found, it's an unresolved value, so ignore it.
-            if (bindingPath == null) return;
-
-            sourceExports.set(localName, {
-              type: 'symbol',
-              name: exportName, // Bar
-              sourceName: localName, // Foo
-              path: bindingPath,
-              id: util.makeId(filePath, exportName),
-            });
-          }
-        }
-      },
-
-      // export * from 'foo';
-      // Note that `export * as Foo from 'foo'` is considered an ExportNamedDeclaration
-      // in babel, but other parsers consider that an ExportAllDeclaration.
-      ExportAllDeclaration(path) {
-        wildcardExports.push({type: 'wildcard', sourceFile: path.node.source.value});
-      },
-
-      // TODO: Handle default exports
-      ExportDefaultDeclaration(_path) {},
-    });
-
-    return {sourceExports, externalExports, wildcardExports};
+    this.host.cache.setTypeScopes(filePath, result.typeScopes);
+    return result;
   }
 
   /**

@@ -1,6 +1,13 @@
-import {NodePath} from '@babel/traverse';
+import type {ParseResult} from '@babel/parser';
+import type {NodePath} from '@babel/traverse';
+import type {File} from '@babel/types';
+
+export type BabelAST = ParseResult<File>;
 
 export type NodeId = {file: string; symbol: string};
+
+export type TypeBinding = {kind: string; path: NodePath};
+export type TypeScope = Map<string, TypeBinding>;
 
 /**
  * EXPORTS

@@ -1,10 +1,12 @@
 // @ts-check
 
 /**
- * @typedef {import('@babel/parser').ParseResult<import('@babel/types').File>} ProgramAST
+ * @typedef {import('@babel/traverse').Scope} Scope
  *
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
  *
+ * @typedef {import('./types').BabelAST} BabelAST
+ * @typedef {import('./types').TypeScope} TypeScope
  * @typedef {import('./types').SourceExport} SourceExport
  * @typedef {import('./types').NodeId} NodeId
  *
@@ -58,11 +60,19 @@ module.exports = class LoaderCache {
    * Map of absolute file paths to parsed ASTs, kept around since the loader
    * ends up doing multiple passes over a file
    *
-   * @type {Map<string, ProgramAST>}
+   * @type {Map<string, BabelAST>}
    */
   astCache = new Map();
 
-  constructor() {}
+  /**
+   * Map of absolute file paths to type scope maps, used both when building
+   * export graphs and when processing imports in the transformer, this cache
+   * allows the same resolved scopes to be re-used without having to
+   * re-traverse the AST each time.
+   *
+   * @type {Map<string, Map<Scope, TypeScope>>}
+   */
+  typeScopesCache = new Map();
 
   /**
    * @param {NodeId} nodeId
@@ -200,7 +210,7 @@ module.exports = class LoaderCache {
 
   /**
    * @param {string} filePath
-   * @returns {ProgramAST | undefined}
+   * @returns {BabelAST | undefined}
    */
   getAST(filePath) {
     return this.astCache.get(filePath);
@@ -208,10 +218,23 @@ module.exports = class LoaderCache {
 
   /**
    * @param {string} filePath
-   * @param {ProgramAST} ast
+   * @param {BabelAST} ast
    */
   setAST(filePath, ast) {
     this.astCache.set(filePath, ast);
+  }
+
+  /** @param {string} filePath */
+  getTypeScopes(filePath) {
+    return this.typeScopesCache.get(filePath);
+  }
+
+  /**
+   * @param {string} filePath
+   * @param {Map<Scope, TypeScope>} filePath
+   */
+  setTypeScopes(filePath, typeScopes) {
+    this.typeScopesCache.set(filePath, typeScopes);
   }
 
   /**
@@ -232,5 +255,6 @@ module.exports = class LoaderCache {
     this.exportCache.delete(filePath);
     this.deleteSymbolsFromFile(filePath);
     this.astCache.delete(filePath);
+    this.typeScopesCache.delete(filePath);
   }
 };

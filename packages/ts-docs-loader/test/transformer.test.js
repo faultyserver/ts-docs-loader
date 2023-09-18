@@ -13,7 +13,7 @@ import {assertNodeContent} from '../test/util.js';
  */
 
 function getTransformer() {
-  return new Transformer('mem');
+  return new Transformer('mem', new Map());
 }
 
 function parseCode(source) {
