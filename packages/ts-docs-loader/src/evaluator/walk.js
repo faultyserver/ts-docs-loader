@@ -1,5 +1,8 @@
 /**
- * Recurse through every key of `obj`.
+ * Recurse through every key of `object`, invoking `walkerFn` with the value of
+ * that key and the key itself, then using the return value from each key to
+ * build a new object. The end result is a new object with all of the elements
+ * mapped to new values by the walker function.
  *
  * @type {import('./types').walk}
  */
@@ -7,34 +10,35 @@ module.exports = function walk(object, walkerFn) {
   // circular is to make sure we don't traverse over an object we visited earlier in the recursion
   const circular = new Set();
 
-  const visit = (obj, k = null) => {
-    const recurse = (obj, key = k) => {
-      if (!Array.isArray(obj) && circular.has(obj)) {
+  function visit(current, k = null) {
+    /** @type {import ('./types').Recurser} */
+    function recurse(subject, key = k) {
+      if (!Array.isArray(subject) && circular.has(subject)) {
         return {
           type: 'link',
-          id: obj.id,
+          id: subject.id,
         };
       }
 
-      if (Array.isArray(obj)) {
+      if (Array.isArray(subject)) {
         const resultArray = [];
-        obj.forEach((item, i) => (resultArray[i] = visit(item, key)));
+        subject.forEach((item, i) => (resultArray[i] = visit(item, key)));
         return resultArray;
-      } else if (obj && typeof obj === 'object') {
-        circular.add(obj);
+      } else if (subject && typeof subject === 'object') {
+        circular.add(subject);
         const res = {};
-        for (const key in obj) {
-          res[key] = visit(obj[key], key);
+        for (const key in subject) {
+          res[key] = visit(subject[key], key);
         }
-        circular.delete(obj);
+        circular.delete(subject);
         return res;
       } else {
-        return obj;
+        return subject;
       }
-    };
+    }
 
-    return walkerFn(obj, k, recurse);
-  };
+    return walkerFn(current, k, recurse);
+  }
 
   const res = {};
   for (const k in object) {

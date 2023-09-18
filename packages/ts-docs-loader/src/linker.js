@@ -7,6 +7,7 @@ const walk = require('./evaluator/walk');
 
 /**
  * @typedef {import('@faulty/ts-docs-node-types').Node} Node
+ * @typedef {import('@faulty/ts-docs-node-types').TypeParameterNode} TypeParameterNode
  * @typedef {import('@faulty/ts-docs-node-types').PropertyNode | import('@faulty/ts-docs-node-types').MethodNode} PropertyOrMethodNode
  * @typedef {import('@faulty/ts-docs-node-types').Asset} Asset
  *
@@ -173,11 +174,13 @@ module.exports = class Linker {
     };
 
     walk(nodes, (t, _k, recurse) => {
+      if (t == null) return t;
+
       // don't follow the link if it's already in links, that's circular
-      if (t != null && t.type === 'link' && links[t.id] == null) {
+      if (t.type === 'link' && links[t.id] == null) {
         saveLink(t.id);
         recurse(this.nodes[t.id]);
-      } else if (t != null && (t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
+      } else if ((t.type === 'property' || t.type === 'method') && t.inheritedFrom != null) {
         saveLink(t.inheritedFrom);
       }
 
@@ -194,9 +197,13 @@ module.exports = class Linker {
    * @returns {DocsResult}
    */
   processCode(obj) {
-    let application;
+    /** @type {Node[] | null} */
+    let application = null;
+    /** @type {Array<Record<string, Node>>} */
     const paramStack = [];
+    /** @type {Array<string | null>} */
     const keyStack = [];
+
     return walk(obj, (current, key, recurse) => {
       if (current == null) return current;
 
@@ -222,12 +229,13 @@ module.exports = class Linker {
       if (
         (current.type === 'alias' || current.type === 'interface') &&
         current.typeParameters &&
-        application &&
+        application != null &&
         this.shouldMerge(current, key, keyStack)
       ) {
+        const app = application;
         const params = Object.assign({}, paramStack[paramStack.length - 1]);
         current.typeParameters.forEach((p, i) => {
-          params[p.name] = application[i] || p.default;
+          params[p.name] = app[i] ?? p.default;
         });
         paramStack.push(params);
         // so we don't replace the type parameters in the extended interface
@@ -242,7 +250,8 @@ module.exports = class Linker {
         // Seeing `DateValue` (as in `T extends DateValue`) is nicer than just `T`.
         const typeParameters = recurse(current.typeParameters, 'typeParameters');
         const params = Object.assign({}, paramStack[paramStack.length - 1]);
-        typeParameters.forEach((p) => {
+        /** @type {TypeParameterNode[]} */
+        (typeParameters).forEach((p) => {
           if (!params[p.name] && p.constraint) {
             params[p.name] = p.constraint;
           }

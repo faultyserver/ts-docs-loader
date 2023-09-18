@@ -1102,7 +1102,6 @@ module.exports = class Transformer {
   /**
    * EX:
    * - {[index: number]: Foo}
-   * - {[P in keyof T]: T[P]}
    *
    * @param {NodePath<t.TSIndexSignature>} path
    * @param {PartialNode} node
