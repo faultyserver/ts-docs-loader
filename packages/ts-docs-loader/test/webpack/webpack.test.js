@@ -63,7 +63,7 @@ test('handles looping imports through a barrel', async () => {
   assert(data.exports['Foo']['properties']['barProp'] instanceof Object);
 });
 
-test('ExampleComponents', async () => {
+test('Large project example with node_modules dependencies', async () => {
   const entry = path.resolve(__dirname, '../../../../examples/react-next/components/ExampleComponents.tsx');
   const context = path.resolve(__dirname, '../../../../examples/react-next');
   const stats = await compiler(entry, {context});
