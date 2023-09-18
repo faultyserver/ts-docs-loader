@@ -211,12 +211,14 @@ module.exports = class Linker {
       if (current.type === 'reference') {
         const res = this.dependencies[current.specifier] ?? this.asset;
         const result = res?.exports[current.imported] ?? null;
-        if (result != null) return recurse(result);
-
-        return {
-          type: 'identifier',
-          name: current.local,
-        };
+        if (result != null) {
+          current = result;
+        } else {
+          return {
+            type: 'identifier',
+            name: current.local,
+          };
+        }
       }
 
       if (current.type === 'application') {
