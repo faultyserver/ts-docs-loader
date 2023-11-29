@@ -1,6 +1,6 @@
 {
   "name": "@faulty/ts-docs-type-renderer",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "Render type signatures from documentation created by `@faulty/ts-docs-loader`.",
   "main": "index.js",
   "scripts": {

@@ -1,6 +1,6 @@
 {
   "name": "@faulty/ts-docs-node-types",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "(Types only) Type definitions for nodes, shared among `@faulty/ts-docs-*` packages",
   "types": "index.d.ts",
   "keywords": [],
