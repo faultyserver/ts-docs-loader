@@ -24,9 +24,16 @@ export interface NodeDocs {
   params?: Record<string, string>;
 }
 
+export interface NodeLocationInfo {
+  filePath: string;
+  startLine: number;
+  endLine: number;
+}
+
 export interface NodeBase extends NodeDocs {
   id?: string;
   name?: string;
+  location?: NodeLocationInfo;
 }
 
 export interface AnyNode extends NodeBase {

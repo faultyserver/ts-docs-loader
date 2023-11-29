@@ -235,7 +235,7 @@ module.exports = class Linker {
         this.shouldMerge(current, key, keyStack)
       ) {
         const app = application;
-        const params = Object.assign({}, paramStack[paramStack.length - 1]);
+        const params = {...paramStack[paramStack.length - 1]};
         current.typeParameters.forEach((p, i) => {
           params[p.name] = app[i] ?? p.default;
         });
@@ -251,7 +251,7 @@ module.exports = class Linker {
         // If we are at a root export, replace type parameters with constraints if possible.
         // Seeing `DateValue` (as in `T extends DateValue`) is nicer than just `T`.
         const typeParameters = recurse(current.typeParameters, 'typeParameters');
-        const params = Object.assign({}, paramStack[paramStack.length - 1]);
+        const params = {...paramStack[paramStack.length - 1]};
         /** @type {TypeParameterNode[]} */
         (typeParameters).forEach((p) => {
           if (!params[p.name] && p.constraint) {

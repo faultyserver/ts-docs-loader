@@ -273,7 +273,7 @@ module.exports = class Transformer {
 
   /**
    *
-   * @param {Node} value
+   * @param {PartialNode} value
    * @param {NodeDocs} docs
    * @returns
    */
@@ -302,6 +302,7 @@ module.exports = class Transformer {
     }
 
     if (value.type === 'function') {
+      // @ts-expect-error partial node
       this.addFunctionDocs(value, docs);
     }
 
@@ -309,7 +310,27 @@ module.exports = class Transformer {
   }
 
   /**
-   *
+   * Add file and line number location information to the node
+   * @param {PartialNode} node
+   * @param {NodePath} path
+   */
+  addLocation(node, path) {
+    const location = path.node.loc;
+    if (location == null) {
+      console.log('[Docs Transformer] Tried adding location information, but none was present');
+      return node;
+    }
+
+    node.location = {
+      filePath: this.filePath,
+      startLine: location.start.line,
+      endLine: location.end.line,
+    };
+
+    return node;
+  }
+
+  /**
    * @param {NodePath} path
    * @param {PartialNode} node
    * @returns
@@ -324,7 +345,6 @@ module.exports = class Transformer {
   }
 
   /**
-   *
    * @param {NodePath} path
    * @param {PartialNode} node
    * @returns
@@ -433,8 +453,8 @@ module.exports = class Transformer {
     node.id = util.makeIdString(this.filePath, path.node.id['name']);
     node.name = path.node.id['name'];
 
-    // @ts-ignore
     this.addDocs(node, docs);
+    this.addLocation(node, path);
 
     return node;
   }
@@ -476,24 +496,23 @@ module.exports = class Transformer {
      */
     const name = path.node.id?.name ?? '';
 
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'interface',
-          id: util.makeIdString(this.filePath, name),
-          name: name,
-          extends: exts,
-          // @ts-ignore enforcing this is property | method with the type check in the loop above
-          properties,
-          typeParameters: path.node.typeParameters
-            ? // @ts-ignore
-              path.get('typeParameters.params').map((p) => this.processExport(p))
-            : [],
-        },
-        docs,
-      ),
-    );
+    Object.assign(node, {
+      type: 'interface',
+      id: util.makeIdString(this.filePath, name),
+      name: name,
+      extends: exts,
+      // @ts-ignore enforcing this is property | method with the type check in the loop above
+      properties,
+      typeParameters: path.node.typeParameters
+        ? // @ts-ignore
+          path.get('typeParameters.params').map((p) => this.processExport(p))
+        : [],
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+
+    return node;
   }
 
   /**
@@ -507,22 +526,21 @@ module.exports = class Transformer {
   processClassProperty(path, node) {
     const name = t.isStringLiteral(path.node.key) ? path.node.key.value : path.node.key['name'];
     const docs = this.getJSDocs(path);
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'property',
-          name,
-          value: path.node.typeAnnotation
-            ? // @ts-ignore
-              this.processExport(path.get('typeAnnotation.typeAnnotation'))
-            : {type: 'any'},
-          optional: path.node.optional || false,
-          access: path.node.accessibility,
-        },
-        docs,
-      ),
-    );
+
+    Object.assign(node, {
+      type: 'property',
+      name,
+      value: path.node.typeAnnotation
+        ? // @ts-ignore
+          this.processExport(path.get('typeAnnotation.typeAnnotation'))
+        : {type: 'any'},
+      optional: path.node.optional || false,
+      access: path.node.accessibility,
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -566,18 +584,17 @@ module.exports = class Transformer {
   processObjectProperty(path, node) {
     const name = t.isStringLiteral(path.node.key) ? path.node.key.value : path.node.key['name'];
     const docs = this.getJSDocs(path);
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'property',
-          name,
-          value: this.processExport(path.get('value')),
-          optional: false,
-        },
-        docs,
-      ),
-    );
+
+    Object.assign(node, {
+      type: 'property',
+      name,
+      value: this.processExport(path.get('value')),
+      optional: false,
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -624,18 +641,16 @@ module.exports = class Transformer {
       };
     }
 
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: value.type === 'function' ? 'method' : 'property',
-          name,
-          value,
-          access: path.node['accessibility'],
-        },
-        docs,
-      ),
-    );
+    Object.assign(node, {
+      type: value.type === 'function' ? 'method' : 'property',
+      name,
+      value,
+      access: path.node['accessibility'],
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -651,8 +666,7 @@ module.exports = class Transformer {
     if (this.isReactComponent(path)) {
       const props = path.node.params[0];
       const ref = path.node.params[1];
-      const docs = this.getJSDocs(path);
-      return Object.assign(node, {
+      Object.assign(node, {
         type: 'component',
         id: 'id' in path.node && path.node.id != null ? util.makeIdString(this.filePath, path.node.id.name) : null,
         name: 'id' in path.node && path.node.id ? path.node.id.name : null,
@@ -669,33 +683,30 @@ module.exports = class Transformer {
           ? // @ts-ignore
             this.processExport(path.get('params.1.typeAnnotation.typeAnnotation'))
           : null,
-        description: docs.description || null,
       });
     } else {
-      const docs = this.getJSDocs(path);
-      return Object.assign(
-        node,
-        this.addDocs(
-          {
-            type: 'function',
-            id: 'id' in path.node && path.node.id ? util.makeIdString(this.filePath, path.node.id.name) : undefined,
-            name: 'id' in path.node && path.node.id ? path.node.id.name : undefined,
+      Object.assign(node, {
+        type: 'function',
+        id: 'id' in path.node && path.node.id ? util.makeIdString(this.filePath, path.node.id.name) : undefined,
+        name: 'id' in path.node && path.node.id ? path.node.id.name : undefined,
 
-            // @ts-ignore
-            parameters: path.get('params').map((p) => this.processParameter(p)),
-            return: path.node.returnType
-              ? // @ts-ignore
-                this.processExport(path.get('returnType.typeAnnotation'))
-              : {type: 'any'},
-            typeParameters: path.node.typeParameters
-              ? // @ts-ignore
-                path.get('typeParameters.params').map((p) => this.processExport(p))
-              : [],
-          },
-          docs,
-        ),
-      );
+        // @ts-ignore
+        parameters: path.get('params').map((p) => this.processParameter(p)),
+        return: path.node.returnType
+          ? // @ts-ignore
+            this.processExport(path.get('returnType.typeAnnotation'))
+          : {type: 'any'},
+        typeParameters: path.node.typeParameters
+          ? // @ts-ignore
+            path.get('typeParameters.params').map((p) => this.processExport(p))
+          : [],
+      });
     }
+
+    const docs = this.getJSDocs(path);
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -868,24 +879,22 @@ module.exports = class Transformer {
     const exts = path.node.extends ? path.get('extends').map((e) => this.processExport(e)) : [];
     const docs = this.getJSDocs(path);
 
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'interface',
-          id: util.makeIdString(this.filePath, path.node.id.name),
-          name: path.node.id.name,
-          extends: exts,
-          // @ts-ignore enforcing this is property | method with the type check in the loop above.
-          properties,
-          typeParameters: path.node.typeParameters
-            ? // @ts-ignore
-              path.get('typeParameters.params').map((p) => this.processExport(p))
-            : [],
-        },
-        docs,
-      ),
-    );
+    Object.assign(node, {
+      type: 'interface',
+      id: util.makeIdString(this.filePath, path.node.id.name),
+      name: path.node.id.name,
+      extends: exts,
+      // @ts-ignore enforcing this is property | method with the type check in the loop above.
+      properties,
+      typeParameters: path.node.typeParameters
+        ? // @ts-ignore
+          path.get('typeParameters.params').map((p) => this.processExport(p))
+        : [],
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -1051,18 +1060,16 @@ module.exports = class Transformer {
 
     // @ts-ignore
     const value = this.processExport(path.get('typeAnnotation.typeAnnotation'));
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'property',
-          name,
-          value,
-          optional: path.node.optional || false,
-        },
-        docs,
-      ),
-    );
+    Object.assign(node, {
+      type: 'property',
+      name,
+      value,
+      optional: path.node.optional || false,
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -1081,28 +1088,27 @@ module.exports = class Transformer {
       : // @ts-expect-error `path.node.key` _could_ be an arbitrary expression, but isn't.
         path.node.key.name;
     const docs = this.getJSDocs(path);
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'method',
-          name,
-          value: {
-            type: 'function',
-            parameters: path.get('parameters').map((p) => this.processParameter(p)),
-            return: path.node.typeAnnotation
-              ? // @ts-ignore
-                this.processExport(path.get('typeAnnotation.typeAnnotation'))
-              : {type: 'any'},
-            typeParameters: path.node.typeParameters
-              ? // @ts-ignore
-                path.get('typeParameters.params').map((p) => this.processExport(p))
-              : [],
-          },
-        },
-        docs,
-      ),
-    );
+
+    Object.assign(node, {
+      type: 'method',
+      name,
+      value: {
+        type: 'function',
+        parameters: path.get('parameters').map((p) => this.processParameter(p)),
+        return: path.node.typeAnnotation
+          ? // @ts-ignore
+            this.processExport(path.get('typeAnnotation.typeAnnotation'))
+          : {type: 'any'},
+        typeParameters: path.node.typeParameters
+          ? // @ts-ignore
+            path.get('typeParameters.params').map((p) => this.processExport(p))
+          : [],
+      },
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**
@@ -1116,20 +1122,18 @@ module.exports = class Transformer {
   processTSIndexSignature(path, node) {
     const name = path.node.parameters[0].name;
     const docs = this.getJSDocs(path);
-    return Object.assign(
-      node,
-      this.addDocs(
-        {
-          type: 'property',
-          name,
-          // @ts-ignore
-          indexType: this.processExport(path.get('parameters.0.typeAnnotation.typeAnnotation')),
-          // @ts-ignore
-          value: this.processExport(path.get('typeAnnotation.typeAnnotation')),
-        },
-        docs,
-      ),
-    );
+    Object.assign(node, {
+      type: 'property',
+      name,
+      // @ts-ignore
+      indexType: this.processExport(path.get('parameters.0.typeAnnotation.typeAnnotation')),
+      // @ts-ignore
+      value: this.processExport(path.get('typeAnnotation.typeAnnotation')),
+    });
+
+    this.addDocs(node, docs);
+    this.addLocation(node, path);
+    return node;
   }
 
   /**

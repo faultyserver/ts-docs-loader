@@ -45,15 +45,12 @@ module.exports = function mergeExtensions(base) {
 
   return {
     type: 'interface',
-    id: base.id,
-    name: base.name,
+    ...base,
     properties,
-    typeParameters: base.typeParameters,
     // TODO: When all base classes were able to be resolved and merged, the
     // `extends` array will be empty. Maybe it could/should still populate for
     // additional information?
     extends: exts,
-    description: base.description,
   };
 };
 
