@@ -27,9 +27,19 @@ Then just import the file you want documentation for using the direct loader syn
 import docs from '!doc!path/to/your/file';
 
 // `.exports` is a map of entity names to their type documentation
-docs.exports["Props"]
+docs.exports['Props'];
 // `.links` is a map of types that are referenced by other types in the exports
-docs.links
+docs.links;
+```
+
+Configuring the loader is complicated because webpack doesn't provide a standard options object to use. Instead, configurations must be serialized as query parameters on the loader path:
+
+```javascript
+{
+    resolveLoader: {
+        'doc': `@faulty/ts-docs-loader?basePath=${process.cwd()}`
+    }
+}
 ```
 
 ## Development

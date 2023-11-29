@@ -26,7 +26,7 @@ const {getTypeBinding} = require('./traverseExportsAndTypes');
 module.exports = class Transformer {
   /**
    * @param {string} filePath - Absolute file path for the source, used for constructing IDs
-   * @param {Map<Scope, TypeScope>} typeScopes - Absolute file path for the source, used for constructing IDs
+   * @param {Map<Scope, TypeScope>} typeScopes
    */
   constructor(filePath, typeScopes) {
     /** @type {string} */

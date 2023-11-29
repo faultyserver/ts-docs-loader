@@ -36,7 +36,9 @@ const util = require('./util');
  * @typedef Host
  * @property {(filePath: string) => Promise<string>} getSource Get the string content of the given file.
  * @property {(specifier: string, context: string) => Promise<string>} resolve Resolve an import specifier path to a file path.
- * @property {import('./cache')} cache
+ * @property {import('./cache')} cache Instance of a loader cache to use for this compilation.
+ * @property {(path: string) => string} trimPath Trim a full file path in some way to make it more meaningful for the host
+ * (i.e., strip leading paths to create a relative path to the project, rather than an absolute path).
  */
 
 module.exports = class Loader {
@@ -48,7 +50,7 @@ module.exports = class Loader {
    */
   inProgress = new Set();
 
-  /** @param {Host} host An adapter to the host bundler to load code and resolve module dependencies. */
+  /** @param {Host} host An adapter to the host bundler to load code and resolve module dependencies.*/
   constructor(host) {
     /** @type {Host} */
     this.host = host;
@@ -200,7 +202,7 @@ module.exports = class Loader {
    */
   async processExports(filePath, requestedExports) {
     const typeScopes = await this.gatherTypeScopes(filePath);
-    const transformer = new Transformer(filePath, typeScopes);
+    const transformer = new Transformer(this.host.trimPath(filePath), typeScopes);
     /** @type {Record<string, Node>} */
     const exportedNodes = {};
 
